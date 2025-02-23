@@ -26,7 +26,9 @@ data Game x = Game
     , _bullets :: [Item x]
     , _shields :: [Item x]
     , _invaders :: [Item x]
-    , _wave :: Int 
+    , _wave :: Int
+    , _score :: Int
+    , _lives :: Int
     }
 
 
@@ -48,7 +50,7 @@ pNegate (x, y) = (negate x, negate y)
     -- Objetos
     
 startGame :: (Fractional a, Ord a) => [a] -> Int -> Game a
-startGame rands0 wave = Game Running False False False rands1 0 player [] shields invaders wave
+startGame rands0 wave = Game Running False False False rands1 0 player [] shields invaders wave 0 3
     where   player = Item (70, 20) (0, -250) (0, 0) 1
             ([mag, dir], rands1) = splitAt 2 rands0
             vx = 150  
@@ -107,7 +109,7 @@ invaderShoot g = g { _bullets = _bullets g ++ bs, _rands = rands3 }
           fighters0 = M.toList $ foldl fInsert M.empty invadersPos
           (rands0, rands1) = splitAt (length fighters0) (_rands g)
           (rands2, rands3) = splitAt (length fighters0) rands1
-          difficulty = 1.0 + fromIntegral (length invadersPos) * (0.99 - 0.9) / 15
+          difficulty = 0.95 + fromIntegral (length invadersPos) * (0.99 - 0.9) / 15
           fighters1 = [ (p, v) | (p, r, v) <- zip3 fighters0 rands0 rands2, r > difficulty ]
           createBullet ((x, y), v) = Item (3, 9) (x, y-20) (0, -(300-v*200)) 1
           bs = map createBullet fighters1
@@ -120,13 +122,29 @@ updateBullets time g = g { _bullets = b2 }
     -- Colisões
 
 updateCollisions :: (Fractional a, Ord a) => Game a -> Game a
-updateCollisions g = g1 { _bullets = b3, _shields = s1 , _invaders = i1 }
-    where (b1, i1) = runCollisions (_bullets g) (_invaders g)
-          (b2, p1) = runCollisions b1 [_player g]
-          (b3, s1) = runCollisions b2 (_shields g)
-          st | null p1 = Lost  -- Jogador perdeu se o player for destruído
-             | otherwise = Running  -- Mantém o jogo rodando, mesmo se todos os invasores forem destruídos
-          g1 = if st == Lost then g { _status = Lost } else g
+updateCollisions g = g1 { _bullets = b3, _shields = s1 , _invaders = i1, _score = newScore }
+    where 
+        -- Verifica colisões de balas com os invasores
+        (b1, i1) = runCollisions (_bullets g) (_invaders g)
+        
+        -- Verifica colisões da bala com o player
+        (b2, p1) = runCollisions b1 [_player g]
+        
+        -- Verifica colisões com os escudos
+        (b3, s1) = runCollisions b2 (_shields g)
+
+        -- Calcula a nova pontuação e vidas
+        newScore = _score g + length (_invaders g) - length i1  -- Incrementa a pontuação ao destruir invasores
+        newLives = if null p1 then _lives g - 1 else _lives g -- Reduz uma vida caso o player tenha sido atingido
+
+        -- Se não houver vidas restantes, altera o status para 'Lost'
+        st = if newLives <= 0 then Lost else Running
+        g1 = if st == Lost then g { _status = Lost, _lives = 0 } else g { _lives = newLives, _score = newScore }
+
+
+
+
+
                 
 
 testCollision :: (Fractional a, Ord a) => Item a -> Item a -> Bool
@@ -147,32 +165,46 @@ runCollisions (b:bs) is = (bs1++bs2, is2)
 
 step :: (Fractional a, Ord a) => a -> Game a -> Game a
 step time g
-    | _status g /= Running = g  -- Se o jogo não está rodando, não faz nada
-    | null (_invaders g) = startNewWave g  -- Se não há invasores, inicia uma nova wave
-    | otherwise = updateGame time g  -- Caso contrário, atualiza o jogo normalmente
+    | _status g /= Running = g  
+    | null (_invaders g) = startNewWave g  
+    | otherwise = updateGame time g  
     where
-        -- Função para atualizar o jogo normalmente
         updateGame time g = updatePlayer time
                             $ updateInvaders time 
                             $ updateBullets time
                             $ updateCollisions g
 
-        -- Função para iniciar uma nova wave
+        -- Mantém a pontuação ao iniciar uma nova wave
         startNewWave g = 
             let newWave = if (_wave g + 1) `mod` 5 == 0 then 1 else _wave g + 1
-            in (startGame (_rands g) newWave) {_status = Running}
+                newGame = startGame (_rands g) newWave
+            in newGame { _score = _score g }  -- Preserva a pontuação anterior
+
 
 -- MAIN
 
 displayH :: Game Float -> Picture
 displayH g = case _status g of
-    Won -> Color white $ Translate (-170) 0 $ Scale 0.5 0.5 $ Text "YOU WIN!"
-    Lost -> Color white $ Translate (-200) 0 $ Scale 0.5 0.5 $ Text "GAME OVER!"
-    _ -> pictures $ player : bullets ++ shields ++ invaders
-    where player = drawItem green (_player g)
-          bullets = map (drawItem yellow) (_bullets g)
-          shields = map (drawItem blue) (_shields g)
-          invaders = map (drawItem red) (_invaders g)
+    Won  -> pictures [gameOverText "YOU WIN!", scoreText, livesText]
+    Lost -> pictures [gameOverText "GAME OVER!", scoreText, livesText]  -- Exibe o número de vidas na tela de Game Over
+    _    -> pictures $ scoreText : livesText : player : bullets ++ shields ++ invaders
+    where 
+        player = drawItem green (_player g)
+        bullets = map (drawItem yellow) (_bullets g)
+        shields = map (drawItem blue) (_shields g)
+        invaders = map (drawItem red) (_invaders g)
+
+        -- Exibe o placar no canto superior esquerdo
+        scoreText = Color white $ Translate (-380) 260 $ Scale 0.3 0.3 $ Text ("Score: " ++ show (_score g))
+
+        -- Exibe o número de vidas no canto inferior esquerdo
+        livesText = Color white $ Translate (-380) (-280) $ Scale 0.3 0.3 $ Text ("Lives: " ++ show (_lives g))
+
+        -- Função para exibir mensagens de vitória e derrota centralizadas
+        gameOverText msg = Color white $ Translate (-200) 50 $ Scale 0.5 0.5 $ Text msg
+
+
+
 
 drawItem :: Color -> Item Float -> Picture
 drawItem c it = Color c $ Translate x y $ rectangleSolid sx sy
