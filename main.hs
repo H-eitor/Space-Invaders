@@ -137,7 +137,6 @@ updateBullets time g = g { _playerBullets = pb2, _enemyBullets = eb2 }
           eb2 = filter (\b -> snd (_pos b) < 300 && snd (_pos b) > -300) eb1
 
     -- Colisões
-
 updateCollisions :: (Fractional a, Ord a) => Game a -> Game a
 updateCollisions g = g1 { _playerBullets = pb3, _enemyBullets = eb3, _shields = s2, _invaders = i1, _score = newScore }
     where 
@@ -157,13 +156,15 @@ updateCollisions g = g1 { _playerBullets = pb3, _enemyBullets = eb3, _shields = 
         pb3 = pb2
         eb3 = eb2
 
-        -- Calcula a nova pontuação e vidas
-        newScore = _score g + length (_invaders g) - length i1
+        -- Calcula a pontuação baseada na fase atual
+        pontosPorInimigo = if _wave g `mod` 5 == 0 then 10 else 1
+        newScore = _score g + (length (_invaders g) - length i1) * pontosPorInimigo
         newLives = if null p1 then _lives g - 1 else _lives g
 
         -- Se não houver vidas restantes, altera o status para 'Lost'
         st = if newLives <= 0 then Lost else Running
         g1 = if st == Lost then g { _status = Lost, _lives = 0 } else g { _lives = newLives, _score = newScore }
+
 
 testCollision :: (Fractional a, Ord a) => Item a -> Item a -> Bool
 testCollision (Item as ap _ _) (Item bs bp _ _) =
