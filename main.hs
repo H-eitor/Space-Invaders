@@ -207,8 +207,8 @@ step time g
 
 displayH :: Game Float -> Picture
 displayH g = case _status g of
-    Won  -> pictures [gameOverText "YOU WIN!", scoreText, livesText]
-    Lost -> pictures [gameOverText "GAME OVER!", scoreText, livesText]
+    Won  -> pictures [gameOverText "YOU WIN!", continueText "Press [ENTER] to continue", scoreText, livesText]
+    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [ENTER] to Continue", scoreText, livesText]
     _    -> pictures $ scoreText : livesText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
     where 
         player = drawItem green (_player g)
@@ -220,6 +220,7 @@ displayH g = case _status g of
         scoreText = Color white $ Translate (-380) 260 $ Scale 0.3 0.3 $ Text ("Score: " ++ show (_score g))
         livesText = Color white $ Translate (-380) (-280) $ Scale 0.3 0.3 $ Text ("Lives: " ++ show (_lives g))
         gameOverText msg = Color white $ Translate (-200) 50 $ Scale 0.5 0.5 $ Text msg
+        continueText msg = Color white $ Translate (-100) 10 $ Scale 0.1 0.1 $ Text msg
 
 drawItem :: Color -> Item Float -> Picture
 drawItem c it = Color c $ Translate x y $ rectangleSolid sx sy
@@ -233,10 +234,15 @@ eventH (EventKey (SpecialKey KeyRight) Down _ _) g = g { _inputRight = True }
 eventH (EventKey (SpecialKey KeyRight) Up _ _)   g = g { _inputRight = False }
 eventH (EventKey (SpecialKey KeySpace) Down _ _) g = g { _inputFire = True }
 eventH (EventKey (SpecialKey KeySpace) Up _ _)   g = g { _inputFire = False }
+eventH (EventKey (SpecialKey KeyEnter) Down _ _) g 
+  | _status g /= Running = restartGame g
 eventH _ g = g
 
 idleH :: Float -> Game Float -> Game Float
 idleH = step
+
+restartGame :: Game Float -> Game Float 
+restartGame g = startGame (_rands g) 1 -- reinicia no primeiro nivel
 
 main :: IO ()
 main = do
