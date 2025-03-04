@@ -7,7 +7,7 @@ import System.Random (newStdGen, randoms)
 -- TIPOS
 type Pair x = (x, x)
 
-data Status = Running | Won | Lost deriving (Eq) -- TODO
+data Status = Running | Won | Lost | EnteringName deriving (Eq) -- TODO
 
 data Item x = Item
     { _siz :: Pair x
@@ -30,6 +30,7 @@ data Game x = Game
     , _wave :: Int
     , _score :: Int
     , _lives :: Int
+    , _playerName :: String
     }
 
 -- FUNCOES AUXILIARES
@@ -50,7 +51,7 @@ pNegate (x, y) = (negate x, negate y)
     -- Objetos
 
 startGame :: (Fractional a, Ord a) => [a] -> Int -> Game a
-startGame rands0 wave = Game Running False False False rands1 0 player [] [] shields invaders wave 0 3
+startGame rands0 wave = Game Running False False False rands1 0 player [] [] shields invaders wave 0 3 ""
     where
         player = Item (70, 20) (0, -250) (0, 0) 1
         ([mag, dir], rands1) = splitAt 2 rands0
@@ -205,10 +206,24 @@ step time g
 
 -- MAIN
 
+saveScore :: Game Float -> IO ()
+loadScores :: IO [String]
+-- Salva nome e pontuação do jogador
+saveScore g = do
+    scores <- readFile "scores.txt"
+    let newScore = _playerName g ++ " - Score: " ++ show (_score g)
+    let updatedScores = newScore ++ "\n" ++ scores
+    writeFile "scores.txt" updatedScores
+
+loadScores = do
+    content <- readFile "scores.txt"
+    return $ lines content
+
 displayH :: Game Float -> Picture
 displayH g = case _status g of
-    Won  -> pictures [gameOverText "YOU WIN!", continueText "Press [ENTER] to continue", scoreText, livesText]
-    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [ENTER] to Continue", scoreText, livesText]
+    Won  -> pictures [gameOverText "YOU WIN!", continueText "Press [f1] to continue", scoreText, livesText]
+    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [f1] to Continue | press [enter] to save score", scoreText, livesText]
+    EnteringName -> pictures [gameOverText "ENTER YOUR NAME:", nameText, continueText "Press [ENTER] to save"] -- TODO Consertar essa tela
     _    -> pictures $ scoreText : livesText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
     where 
         player = drawItem green (_player g)
@@ -220,7 +235,9 @@ displayH g = case _status g of
         scoreText = Color white $ Translate (-380) 260 $ Scale 0.3 0.3 $ Text ("Score: " ++ show (_score g))
         livesText = Color white $ Translate (-380) (-280) $ Scale 0.3 0.3 $ Text ("Lives: " ++ show (_lives g))
         gameOverText msg = Color white $ Translate (-200) 50 $ Scale 0.5 0.5 $ Text msg
-        continueText msg = Color white $ Translate (-100) 10 $ Scale 0.1 0.1 $ Text msg
+        continueText msg = Color white $ Translate (-200) 10 $ Scale 0.1 0.1 $ Text msg
+        enterNameText msg = Color white $ Translate (-50) 5 $ Scale 0.1 0.1 $ Text msg
+        nameText = Color white $ Translate (-200) (-10) $ Scale 0.1 0.1 $ Text (_playerName g) --TODO consertar isso
 
 drawItem :: Color -> Item Float -> Picture
 drawItem c it = Color c $ Translate x y $ rectangleSolid sx sy
@@ -234,8 +251,20 @@ eventH (EventKey (SpecialKey KeyRight) Down _ _) g = g { _inputRight = True }
 eventH (EventKey (SpecialKey KeyRight) Up _ _)   g = g { _inputRight = False }
 eventH (EventKey (SpecialKey KeySpace) Down _ _) g = g { _inputFire = True }
 eventH (EventKey (SpecialKey KeySpace) Up _ _)   g = g { _inputFire = False }
-eventH (EventKey (SpecialKey KeyEnter) Down _ _) g 
-  | _status g /= Running = restartGame g
+--TODO tem alguma coisa errada aqui, já que sempre que o jogador pressiona enter o jogo aparece por uma frame
+eventH (EventKey (SpecialKey KeyEnter) Down _ _) g
+  | _status g == Lost || _status g == Won = g { _status = EnteringName }
+  | _status g == EnteringName = g { _status = Running, _playerName = "" } -- Salva a pontuação e reinicia o jogo
+  where _ = saveScore g
+eventH (EventKey (SpecialKey f1) Down _ _) g
+  | _status g == Lost || _status g == Won = restartGame g 
+-- Função de inserir nome
+eventH (EventKey (Char c) Down _ _) g
+  | _status g == EnteringName = g { _playerName = _playerName g ++ [c] }
+-- Função para apagar o nome ao pressionar Backspace
+eventH (EventKey (SpecialKey KeyBackspace) Down _ _) g
+  | _status g == EnteringName = g { _playerName = init (_playerName g) }
+
 eventH _ g = g
 
 idleH :: Float -> Game Float -> Game Float
