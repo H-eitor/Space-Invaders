@@ -7,13 +7,12 @@ import System.Random (newStdGen, randoms)
 -- TIPOS
 type Pair x = (x, x)
 
-data Status = Running | Won | Lost | EnteringName deriving (Eq) -- TODO
+data Status = Running | Lost | EnteringName deriving (Eq)
 
 data Item x = Item
     { _siz :: Pair x
     , _pos :: Pair x
-    , _vel :: Pair x
-    , _hp :: x }
+    , _vel :: Pair x} deriving (Eq)
 
 data Game x = Game
     { _status :: Status
@@ -53,24 +52,22 @@ pNegate (x, y) = (negate x, negate y)
 startGame :: (Fractional a, Ord a) => [a] -> Int -> Game a
 startGame rands0 wave = Game Running False False False rands1 0 player [] [] shields invaders wave 0 3 ""
     where
-        player = Item (70, 20) (0, -250) (0, 0) 1
+        player = Item (70, 20) (0, -250) (0, 0)
         ([mag, dir], rands1) = splitAt 2 rands0
         vx = 150
 
         -- Lógica para criar os invasores
         invaders
-            | wave `mod` 5 == 0 = replicate 10 (Item (70, 20) (0, 150) (vx, 0) 1)  -- Chefe: 10 inimigos sobrepostos
+            | wave `mod` 5 == 0 = replicate 10 (Item (70, 20) (0, 150) (vx, 0))  -- Chefe: 10 inimigos sobrepostos
             | otherwise = [Item (70, 20) 
                 (fromIntegral x * 100, fromIntegral (-y) * 50 + 150)  -- Inimigos normais
-                (vx, 0)
-                1
+                (vx, fromIntegral wave * (-2))
                 | x <- [-2..2], y <- [0..wave-1] ]
 
         -- Escudos
         shields = [Item (70, 15)
             (fromIntegral x * 150, fromIntegral y * 15 - 180 )
             (0, 0)
-            1
             | x <- [-2..2], y <- [1..4]]
 
 updatePlayer :: (Fractional a, Ord a) => a -> Game a -> Game a
@@ -89,16 +86,16 @@ updateInvaders time g = if null myInvaders then g else g3
           xs = map (fst . _pos) myInvaders
           x1min = minimum xs
           x1max = maximum xs
-          v@(vx, _) = _vel $ head myInvaders
+          (vx, vy) = _vel $ head myInvaders
           move v0 v1 i = i { _pos = pSum (_pos i) (pMult time v0), _vel = v1 } 
-          i2 | vx>0 && x1max>380 = map (move (380-x1max, 0) (pNegate v)) i1
-             | vx<0 && x1min<(-380) = map (move (-380-x1min, 0) (pNegate v)) i1
+          i2 | vx>0 && x1max>380 = map (move (380-x1max, 0) (-vx, vy)) i1
+             | vx<0 && x1min<(-380) = map (move (-380-x1min, 0) (-vx, vy)) i1
              | otherwise = i1
           g2 = g { _invaders = i2 }
           g3 = invaderShoot g2
 
 autoUpdateItem :: (Num a) => a -> Item a -> Item a
-autoUpdateItem t i@(Item _ pos vel _) = i { _pos = pSum pos (pMult t vel)}
+autoUpdateItem t i@(Item _ pos vel) = i { _pos = pSum pos (pMult t vel)}
 
     -- Disparos
 
@@ -106,7 +103,7 @@ playerShoot :: (Fractional a, Ord a) => a -> Game a -> Game a
 playerShoot time g = if canFire then mFire else mNofire
     where canFire = _inputFire g && _firetime g > 0.9
           (x, y) = _pos (_player g)
-          bullet = Item (3, 15) (x, y+20) (0, 800) 1
+          bullet = Item (3, 15) (x, y+20) (0, 800)
           mFire = g { _playerBullets = bullet : _playerBullets g, _firetime = 0 }
           mNofire = g { _firetime = time + _firetime g }
 
@@ -126,7 +123,7 @@ invaderShoot g = g { _enemyBullets = _enemyBullets g ++ bs, _rands = rands3 }
           
           fighters1 = [ (p, v) | (p, r, v) <- zip3 fighters0 rands0 rands2, r > difficulty ]
           
-          createBullet ((x, y), v) = Item (3, 9) (x, y-20) (0, -(300-v*200)) 1
+          createBullet ((x, y), v) = Item (3, 9) (x, y-20) (0, -(300-v*200))
           
           bs = map createBullet fighters1
 
@@ -139,7 +136,7 @@ updateBullets time g = g { _playerBullets = pb2, _enemyBullets = eb2 }
 
     -- Colisões
 updateCollisions :: (Fractional a, Ord a) => Game a -> Game a
-updateCollisions g = g1 { _playerBullets = pb3, _enemyBullets = eb3, _shields = s2, _invaders = i1, _score = newScore }
+updateCollisions g = g1 { _playerBullets = pb2, _enemyBullets = eb2, _shields = s3, _invaders = i1, _score = newScore }
     where 
         -- Verifica colisões das balas do jogador com os invasores
         (pb1, i1) = runCollisions (_playerBullets g) (_invaders g)
@@ -153,14 +150,19 @@ updateCollisions g = g1 { _playerBullets = pb3, _enemyBullets = eb3, _shields = 
         -- Verifica colisões das balas dos inimigos com os escudos
         (eb2, s2) = runCollisions eb1 (_shields g)
 
-        -- Combina as balas que não colidiram
-        pb3 = pb2
-        eb3 = eb2
+        -- Verifica coliões dos inimigos com os escudos
+        (_, s3) = runCollisions i1 s2
+
+        -- Verifica colisões dos inimigos com o jogador
+        (_, p2) = runCollisions i1 p1
 
         -- Calcula a pontuação baseada na fase atual
         pontosPorInimigo = if _wave g `mod` 5 == 0 then 10 else 1
         newScore = _score g + (length (_invaders g) - length i1) * pontosPorInimigo
-        newLives = if null p1 then _lives g - 1 else _lives g
+        newLives
+          | p2 /= p1 = 0
+          | null p1 = _lives g - 1
+          | otherwise = _lives g
 
         -- Se não houver vidas restantes, altera o status para 'Lost'
         st = if newLives <= 0 then Lost else Running
@@ -168,7 +170,7 @@ updateCollisions g = g1 { _playerBullets = pb3, _enemyBullets = eb3, _shields = 
 
 
 testCollision :: (Fractional a, Ord a) => Item a -> Item a -> Bool
-testCollision (Item as ap _ _) (Item bs bp _ _) =
+testCollision (Item as ap _) (Item bs bp _) =
     ((bx0 < ax0 && ax0 < bx1) || (bx0 < ax1 && ax1 < bx1)) &&
     ((by0 < ay0 && ay0 < by1) || (by0 < ay1 && ay1 < by1))
     where (ax0, ay0) = pMinus ap (pMult 0.5 as) 
@@ -221,7 +223,6 @@ loadScores = do
 
 displayH :: Game Float -> Picture
 displayH g = case _status g of
-    Won  -> pictures [gameOverText "YOU WIN!", continueText "Press [f1] to continue", scoreText, livesText]
     Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [f1] to Continue | press [enter] to save score", scoreText, livesText]
     EnteringName -> pictures [gameOverText "ENTER YOUR NAME:", nameText, continueText "Press [ENTER] to save"] -- TODO Consertar essa tela
     _    -> pictures $ scoreText : livesText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
@@ -253,11 +254,11 @@ eventH (EventKey (SpecialKey KeySpace) Down _ _) g = g { _inputFire = True }
 eventH (EventKey (SpecialKey KeySpace) Up _ _)   g = g { _inputFire = False }
 --TODO tem alguma coisa errada aqui, já que sempre que o jogador pressiona enter o jogo aparece por uma frame
 eventH (EventKey (SpecialKey KeyEnter) Down _ _) g
-  | _status g == Lost || _status g == Won = g { _status = EnteringName }
+  | _status g == Lost = g { _status = EnteringName }
   | _status g == EnteringName = g { _status = Running, _playerName = "" } -- Salva a pontuação e reinicia o jogo
   where _ = saveScore g
 eventH (EventKey (SpecialKey f1) Down _ _) g
-  | _status g == Lost || _status g == Won = restartGame g 
+  | _status g == Lost = restartGame g 
 -- Função de inserir nome
 eventH (EventKey (Char c) Down _ _) g
   | _status g == EnteringName = g { _playerName = _playerName g ++ [c] }
