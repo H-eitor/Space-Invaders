@@ -252,8 +252,8 @@ loadScores = do
 
 displayH :: Game Float -> Picture
 displayH g = case _status g of
-    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [f1] to Continue | press [enter] to save score", scoreText, livesText]
-    EnteringName -> pictures [gameOverText "ENTER YOUR NAME:", nameText, continueText "Press [ENTER] to save"] -- TODO Consertar essa tela
+    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", scoreText, livesText]
+    EnteringName -> pictures [enterNameText "ENTER YOUR NAME:", nameText, continueText "Press [ENTER] to save"]
     _    -> pictures $ scoreText : livesText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
     where 
         player = drawItem green (_player g)
@@ -266,8 +266,8 @@ displayH g = case _status g of
         livesText = Color white $ Translate (-380) (-280) $ Scale 0.3 0.3 $ Text ("Lives: " ++ show (_lives g))
         gameOverText msg = Color white $ Translate (-200) 50 $ Scale 0.5 0.5 $ Text msg
         continueText msg = Color white $ Translate (-200) 10 $ Scale 0.1 0.1 $ Text msg
-        enterNameText msg = Color white $ Translate (-50) 5 $ Scale 0.1 0.1 $ Text msg
-        nameText = Color white $ Translate (-200) (-10) $ Scale 0.1 0.1 $ Text (_playerName g) --TODO consertar isso
+        enterNameText msg = Color white $ Translate (-200) 30 $ Scale 0.2 0.2 $ Text msg
+        nameText = Color white $ Translate 90 30 $ Scale 0.2 0.2 $ Text (_playerName g)
 
 drawItem :: Color -> Item Float -> Picture
 drawItem c it = Color c $ Translate x y $ rectangleSolid sx sy
