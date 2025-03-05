@@ -20,28 +20,28 @@ data Status = Running | Lost | EnteringName deriving (Eq)
 
 -- Tipo que representa qualquer entidade de jogo (jogador, inimigos, balas, etc)
 data Item x = Item
-    { _siz :: Pair x -- tamanho do item
-    , _pos :: Pair x -- posição do item
-    , _vel :: Pair x } deriving (Eq)  -- velocidade do item
+    { _siz :: Pair x 
+    , _pos :: Pair x 
+    , _vel :: Pair x } deriving (Eq)  
 
 -- Representa o estado completo do jogo, criando um tipo chamado Game que é parametrizado por x, permitindo que o jogo seja generico em relaçao ao tipo numerico usado 
 -- esse tipo é manipulado durante o codigo para atualizar o estado do jogo, processar entrada do jogador, movimentar os objetos e verificar colisões 
 data Game x = Game
-    { _status :: Status -- status do jogo 
-    , _inputLeft :: Bool -- indica que o jogador esta indo p esquerda
-    , _inputRight :: Bool -- indica que o jogador esta indo p direita
-    , _inputFire :: Bool -- indica que o jogador esta atirando
-    , _rands :: [x] -- lista de numeros aleatorios 
-    , _firetime :: x -- tempo desde o ultimo tiro do jogador
-    , _player :: Item x -- representa o jogador (como ele é um Item X, tera as informações de sua posicao,velocidade, vida e tamanho)
-    , _playerBullets :: [Item x]  -- lista de balas disparadas pelo jogador
-    , _enemyBullets :: [Item x]   -- lista de balaras disparadas pelos inimigos
-    , _shields :: [Item x] -- representa os escudos que aparecem na tela
-    , _invaders :: [Item x] -- lista de inimigos na tela
-    , _wave :: Int -- numero da fase que esta atualmente sendo executada no jogo
-    , _score :: Int -- pontuação realizada pelo jogador
-    , _lives :: Int -- quantidade de vidas restantes do jogador
-    , _playerName :: String -- nome do jogador
+    { _status :: Status 
+    , _inputLeft :: Bool 
+    , _inputRight :: Bool 
+    , _inputFire :: Bool 
+    , _rands :: [x]  
+    , _firetime :: x 
+    , _player :: Item x 
+    , _playerBullets :: [Item x]  
+    , _enemyBullets :: [Item x]   
+    , _shields :: [Item x] 
+    , _invaders :: [Item x] 
+    , _wave :: Int 
+    , _score :: Int 
+    , _lives :: Int 
+    , _playerName :: String 
     }
 
 -- FUNCOES AUXILIARES:
@@ -71,49 +71,46 @@ pNegate (x, y) = (negate x, negate y)
 startGame :: (Fractional a, Ord a) => [a] -> Int -> Game a
 startGame rands0 wave = Game Running False False False rands1 0 player [] [] shields invaders wave 0 3 ""
     where
-        player = Item (70, 20) (0, -250) (0, 0) -- cria o jogador
-        -- jogador tem tamanho (70,20) Está posicionado em (0, -250), indicando que ele começa na parte inferior da tela.
-        -- Tem velocidade (0, 0), ou seja, inicialmente está parado.
+        player = Item (70, 20) (0, -250) (0, 0) 
 
         ([mag, dir], rands1) = splitAt 2 rands0
-        vx = 150 -- velocidade horizontal dos inimigos
+        vx = 150 
 
-        invaders -- cria os inimigos
-            | wave `mod` 5 == 0 = replicate 10 (Item (70, 20) (0, 150) (vx, 0))  -- cria um chefe caso o numero de fileiras de inimigos da fase fosse 5
+        invaders 
+            | wave `mod` 5 == 0 = replicate 10 (Item (70, 20) (0, 150) (vx, 0)) 
             | otherwise = [Item (70, 20) 
-                (fromIntegral x * 100, fromIntegral (-y) * 50 + 150)  -- cria as fileiras de inimigos
+                (fromIntegral x * 100, fromIntegral (-y) * 50 + 150)  
                 (vx, fromIntegral wave * (-2))
-                | x <- [-2..2], y <- [0..wave-1] ] -- list comprehension para definir a quantidade de inimigos criados por fileira (x) e o numero de fileiras (y)
-                -- quanto mairo o numero de wave maior sera o numero de fileiras
+                | x <- [-2..2], y <- [0..wave-1] ] 
 
-        shields = [Item (70, 15) -- cria os escudos
+        shields = [Item (70, 15) 
             (fromIntegral x * 150, fromIntegral y * 15 - 180 )
             (0, 0)
-            | x <- [-2..2], y <- [1..4]] -- list comprehension para definir o numero de escudos (x) e quantos escudos estao empilhados (y) (o empilhamento representa a vida dos escudos)
+            | x <- [-2..2], y <- [1..4]] 
 
 -- Função responsável por atualizar a posição do jogador com base nas entradas de _inputLeft e _inputRight
 -- Parametros: time (numero fracionario, representa o tempo desde o ultimo frame), Game a (estado do jogo antes da atualização)
 -- Saida: Game a (estado do jogo atualizado)
 updatePlayer :: (Fractional a, Ord a) => a -> Game a -> Game a
 updatePlayer time game = playerShoot time game1 
-    where distance = time * 200 -- calcula a distancia que o jogador percorre para as entradas de direita ou esquerda 
-          dleft = if _inputLeft game then -distance else 0 -- entrada para mover para esquerda
-          dright = if _inputRight game then distance else 0 -- entrada para mover para direita
+    where distance = time * 200 
+          dleft = if _inputLeft game then -distance else 0 
+          dright = if _inputRight game then distance else 0 
           (x0, y) = _pos (_player game) 
-          x1 = max (-400) $ min 400 $ dleft + dright + x0  -- atualiza a nova posição horizontal do jogador
+          x1 = max (-400) $ min 400 $ dleft + dright + x0  
           game1 = game {_player = ((_player game) {_pos = (x1,y)})} 
 
 -- Função responsável por atualizar a posição dos inimigos com base no tempo decorrido e também faz com que eles mudem de direção ao atingir as bordas da tela
 -- Parametros: time (numero fracionario, representa o tempo percorrido desde o ultimo update), game (estado atual do jogo)
 -- Saida: Game a (estado atualizado do jogo)
 updateInvaders :: (Fractional a, Ord a) => a -> Game a -> Game a
-updateInvaders time game = if null myInvaders then game else game3 -- se nao existe invasores retorna o jogo sem alteração 
-    where myInvaders = _invaders game -- pega a lista de invasores 
+updateInvaders time game = if null myInvaders then game else game3
+    where myInvaders = _invaders game 
           invader1 = map (autoUpdateItem time) myInvaders
           xs = map (fst . _pos) myInvaders
-          x1min = minimum xs -- posição do inimigo mais a esquerda
-          x1max = maximum xs -- posição do inimigo mais a direita
-          (vx, vy) = _vel $ head myInvaders -- pega a velocidade do primeiro invasor 
+          x1min = minimum xs 
+          x1max = maximum xs 
+          (vx, vy) = _vel $ head myInvaders 
           move v0 v1 invader = invader { _pos = pSum (_pos invader) (pMult time v0), _vel = v1 } 
           invader2 | vx>0 && x1max>380 = map (move (380-x1max, 0) (-vx, vy)) invader1 
              | vx<0 && x1min<(-380) = map (move (-380-x1min, 0) (-vx, vy)) invader1 
@@ -133,9 +130,9 @@ autoUpdateItem time item@(Item _ pos vel) = item { _pos = pSum pos (pMult time v
 -- Saida: Game a (estado atualizado do jogo)
 playerShoot :: (Fractional a, Ord a) => a -> Game a -> Game a
 playerShoot time game = if canFire then mFire else mNofire
-    where canFire = _inputFire game && _firetime game > 0.9 -- verifica se o jogador pressionou o botao de disparo e se o tempo de recarga é maior que 0.9
-          (x, y) = _pos (_player game) -- posição do jogador 
-          bullet = Item (3, 15) (x, y+20) (0, 800) -- criação do projétil 
+    where canFire = _inputFire game && _firetime game > 0.9 
+          (x, y) = _pos (_player game) 
+          bullet = Item (3, 15) (x, y+20) (0, 800) 
           mFire = game { _playerBullets = bullet : _playerBullets game, _firetime = 0 } 
           mNofire = game { _firetime = time + _firetime game } 
 
@@ -143,25 +140,23 @@ playerShoot time game = if canFire then mFire else mNofire
 -- Parametro: game (estado atual do jogo)
 -- Saida: Game a (estado atualizado do jogo)
 invaderShoot :: (Fractional a, Ord a) => Game a -> Game a
-invaderShoot game = game { _enemyBullets = _enemyBullets game ++ bulletList, _rands = rands3 } -- tiros dos inimigos são adicionados à lista de balas do jogo
-    where invadersPos = map _pos $ _invaders game -- gera uma lista com a posição de todos os inimigos da fase atual do jogo
+invaderShoot game = game { _enemyBullets = _enemyBullets game ++ bulletList, _rands = rands3 } 
+    where invadersPos = map _pos $ _invaders game 
           fInsert pMap (x,y) = M.insertWith min x y pMap
-          fighters0 = M.toList $ foldl fInsert M.empty invadersPos -- gera uma lista de tuplas de posições dos inimigos
+          fighters0 = M.toList $ foldl fInsert M.empty invadersPos 
           (rands0, rands1) = splitAt (length fighters0) (_rands game) 
           (rands2, rands3) = splitAt (length fighters0) rands1 
           
-          difficulty -- dificuldade das fases (basicamente quanto o numero de fileiras/waves maior será a velocidade que os inimigos vao atirar)
+          difficulty 
             | _wave game == 5 = 0.92
             | _wave game == 4 = 0.98
             | _wave game == 3 = 0.983
             | otherwise = 0.992
           
-          fighters1 = [ (p, vel) | (p, r, vel) <- zip3 fighters0 rands0 rands2, r > difficulty ] -- list comprehension que contem os inimigos que irão atirar, com a posição dos inimigis
-          -- e com conjuntos de numeros aleatorios, o filtro assegura que apenas inimigos com um numero aleatorio maior que o valor da dificuldade irão atirar
+          fighters1 = [ (p, vel) | (p, r, vel) <- zip3 fighters0 rands0 rands2, r > difficulty ] 
+          createBullet ((x, y), vel) = Item (3, 9) (x, y-20) (0, -(300-vel*200)) 
           
-          createBullet ((x, y), vel) = Item (3, 9) (x, y-20) (0, -(300-vel*200)) -- cria a bala dos inimigos 
-          
-          bulletList = map createBullet fighters1 -- cria uma lista de balas
+          bulletList = map createBullet fighters1 
 
 -- Função responsável por atualizar as balas do jogador e dos inimigos, garantindo que elas se movam de acordo com o tempo e removendo as balas que saem da tela
 -- Parametros: time (numero fracionario, representa o tempo percorrido desde o ultimo update), game (estado atual do jogo)
@@ -180,59 +175,64 @@ updateBullets time game = game { _playerBullets = playerb2, _enemyBullets = enem
 updateCollisions :: (Fractional a, Ord a) => Game a -> Game a
 updateCollisions game = game1 { _playerBullets = playerb2, _enemyBullets = enemyb2, _shields = shield3, _invaders = invader1, _score = newScore }
     where 
-        (playerb1, invader1) = runCollisions (_playerBullets game) (_invaders game)  -- verifica colisões das balas do jogador com os invasores
-        (enemyb1, player1) = runCollisions (_enemyBullets game) [_player game] -- verifica colisões das balas dos inimigos com o jogador
-        (playerb2, shield1) = runCollisions playerb1 (_shields game) -- verifica colisões das balas do jogador com os escudos
-        (enemyb2, shield2) = runCollisions enemyb1 (_shields game) -- verifica colisões das balas dos inimigos com os escudos
-        (_, shield3) = runCollisions invader1 shield2 -- verifica coliões dos inimigos com os escudos
-        (_, player2) = runCollisions invader1 player1 -- verifica colisões dos inimigos com o jogador
+        (playerb1, invader1) = runCollisions (_playerBullets game) (_invaders game)  
+        (enemyb1, player1) = runCollisions (_enemyBullets game) [_player game] 
+        (playerb2, shield1) = runCollisions playerb1 (_shields game)
+        (enemyb2, shield2) = runCollisions enemyb1 (_shields game)
+        (_, shield3) = runCollisions invader1 shield2 
+        (_, player2) = runCollisions invader1 player1 
 
-        pontosPorInimigo = if _wave game `mod` 5 == 0 then 10 else 1 -- quantidade de pontos que cada inimigo gera ao serem derrotados, se a fase atual for a 5, ou seja a fase do chefe, os inimigos darão mais pontos
+        pontosPorInimigo = if _wave game `mod` 5 == 0 then 10 else 1 
         newScore = _score game + (length (_invaders game) - length invader1) * pontosPorInimigo
-        newLives -- atualiza a vida do jogador
+        newLives 
           | player2 /= player1 = 0
           | null player1 = _lives game - 1
           | otherwise = _lives game
 
-        status = if newLives <= 0 then Lost else Running -- se o jogador nao tem mais vida entao ele perde o jogo
-        game1 = if status == Lost then game { _status = Lost, _lives = 0 } else game { _lives = newLives, _score = newScore } -- atualização do jogo
+        status = if newLives <= 0 then Lost else Running 
+        game1 = if status == Lost then game { _status = Lost, _lives = 0 } else game { _lives = newLives, _score = newScore } 
 
-
+-- Função responsável por verificar se dois items colidem entre si
+-- Tem como entrada dois itens que serão testados se colidem
+-- Tem como saida um valor booleano que representa se existe ou nao a colisão
 testCollision :: (Fractional a, Ord a) => Item a -> Item a -> Bool
 testCollision (Item as ap _) (Item bs bp _) =
     ((bx0 < ax0 && ax0 < bx1) || (bx0 < ax1 && ax1 < bx1)) &&
-    ((by0 < ay0 && ay0 < by1) || (by0 < ay1 && ay1 < by1))
+    ((by0 < ay0 && ay0 < by1) || (by0 < ay1 && ay1 < by1)) 
     where (ax0, ay0) = pMinus ap (pMult 0.5 as) 
-          (ax1, ay1) = pSum ap (pMult 0.5 as)
-          (bx0, by0) = pMinus bp (pMult 0.5 bs)
-          (bx1, by1) = pSum bp (pMult 0.5 bs)
+          (ax1, ay1) = pSum ap (pMult 0.5 as) 
+          (bx0, by0) = pMinus bp (pMult 0.5 bs) 
+          (bx1, by1) = pSum bp (pMult 0.5 bs) 
 
+-- Função que gerencia colisões entre duas listas de itens, removendo itens que estao colidindo
+-- Recebe duas listas de itens e retorna um par de listas modificadas
 runCollisions :: (Fractional a, Ord a) => [Item a] -> [Item a] -> ([Item a], [Item a])
-runCollisions [] is = ([], is)
-runCollisions (b:bs) [] = (b:bs, [])  -- Se não há inimigos, mantém as balas
-runCollisions (b:bs) is =
-    case break (testCollision b) is of
-        (_, []) -> let (bs', is') = runCollisions bs is
-                   in (b:bs', is')  -- Nenhum inimigo atingido, mantém a bala
-        (before, _:after) -> let (bs', is') = runCollisions bs (before ++ after)
-                             in (bs', is')  -- Remove apenas um inimigo atingido
+runCollisions [] list = ([], list) 
+runCollisions (b:bs) [] = (b:bs, [])  
+runCollisions (b:bs) list =
+    case break (testCollision b) list of 
+        (_, []) -> let (bs', list') = runCollisions bs list
+                   in (b:bs', list')  
+        (before, _:after) -> let (bs', list') = runCollisions bs (before ++ after)
+                             in (bs', list')  
 
+-- Função responsável por controlar a atualização do jogo a cada intervalo de tempo.
+-- Parametros: time (numero fracionario, representa o tempo percorrido desde o ultimo update), game (estado atual do jogo)
+-- Saida: Game a (estado atualizado do jogo)
 step :: (Fractional a, Ord a) => a -> Game a -> Game a
-step time g
-    | _status g /= Running = g  -- Se o jogo não está rodando, não faz nada
-    | null (_invaders g) = startNewWave g  -- Avança para a próxima wave se não houver invasores
-    | otherwise = updateGame time g  -- Atualiza o estado do jogo
+step time game
+    | _status game /= Running = game 
+    | null (_invaders game) = startNewWave game  
+    | otherwise = updateGame time game  
     where
-        updateGame time g = updatePlayer time
+        updateGame time game = updatePlayer time 
                             $ updateInvaders time 
-                            $ updateBullets time
-                            $ updateCollisions g
-
-        -- Função para iniciar uma nova wave
-        startNewWave g = 
-            let newWave = if _wave g == 5 then 1 else _wave g + 1  
-                newGame = startGame (_rands g) newWave
-            in newGame { _score = _score g, _lives = _lives g }  
+                            $ updateBullets time 
+                            $ updateCollisions game 
+        startNewWave game = 
+            let newWave = if _wave game == 5 then 1 else _wave game + 1  
+                newGame = startGame (_rands game) newWave 
+            in newGame { _score = _score game, _lives = _lives game }  
 
 
 -- MAIN
@@ -250,6 +250,7 @@ loadScores = do
     content <- readFile "scores.txt"
     return $ lines content
 
+-- Função responsável por renderizar a tela do jogo com base no estado atual
 displayH :: Game Float -> Picture
 displayH g = case _status g of
     Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", scoreText, livesText]
@@ -269,11 +270,13 @@ displayH g = case _status g of
         enterNameText msg = Color white $ Translate (-200) 30 $ Scale 0.2 0.2 $ Text msg
         nameText = Color white $ Translate 90 30 $ Scale 0.2 0.2 $ Text (_playerName g)
 
+-- Função responsável por desenhar um objeto na tela do jogo
 drawItem :: Color -> Item Float -> Picture
 drawItem c it = Color c $ Translate x y $ rectangleSolid sx sy
     where (x, y) = _pos it
           (sx, sy) = _siz it
 
+-- Função responsável por capturar entradas do teclado e modificar o estado do jogo
 eventH :: Event -> Game Float -> Game Float
 eventH (EventKey (SpecialKey KeyLeft) Down _ _)  g = g { _inputLeft = True }
 eventH (EventKey (SpecialKey KeyLeft) Up _ _)    g = g { _inputLeft = False }
@@ -297,12 +300,15 @@ eventH (EventKey (SpecialKey KeyBackspace) Down _ _) g
 
 eventH _ g = g
 
+-- Função responsável por atualizar o jogo mesmo que o jogador nao esteja interagindo com jogo
 idleH :: Float -> Game Float -> Game Float
-idleH = step
+idleH = step 
 
+-- Função responsavel por reiniciar o jogo na fase 1
 restartGame :: Game Float -> Game Float 
 restartGame g = startGame (_rands g) 1 -- reinicia no primeiro nivel
 
+-- Main que inicia todo o codigo
 main :: IO ()
 main = do
     myRands <- randoms <$> newStdGen
