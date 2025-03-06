@@ -255,7 +255,7 @@ saveScore g =  do
 -- Função responsável por criar o display do jogo
 displayH :: Game Float -> Int -> Picture
 displayH g highScore = case _status g of
-    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", scoreText, livesText, highScoreText]
+    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [ESQ] to exit | press [ENTER] to save score", scoreText, livesText, highScoreText]
     EnteringName -> pictures [enterNameText "ENTER YOUR NAME:", nameText, continueText "Press [ENTER] to save"]
     _    -> pictures $ scoreText : livesText : highScoreText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
     where
@@ -293,11 +293,7 @@ eventH (EventKey (SpecialKey KeySpace) Down _ _) g = g { _inputFire = True }
 eventH (EventKey (SpecialKey KeySpace) Up _ _)   g = g { _inputFire = False }
 eventH (EventKey (SpecialKey KeyEnter) Down _ _) g
   | _status g == Lost = g { _status = EnteringName }
-  | _status g == EnteringName = unsafePerformIO $ do
-      saveScore g
-      return $ g { _status = Running, _playerName = "" } 
-eventH (EventKey (SpecialKey KeyF1) Down _ _) g
-  | _status g == Lost = restartGame g
+  | _status g == EnteringName = unsafePerformIO (saveScore g) `seq` g { _status = Running, _playerName = "" }
 eventH (EventKey (Char c) Down _ _) g
   | _status g == EnteringName = g { _playerName = _playerName g ++ [c] }
 eventH (EventKey (SpecialKey KeyBackspace) Down _ _) g
@@ -307,10 +303,6 @@ eventH _ g = g
 -- Função responsável por atualizar o jogo mesmo que o jogador nao esteja interagindo com jogo
 idleH :: Float -> Game Float -> Game Float
 idleH = step
-
--- Função responsavel por reiniciar o jogo na fase 1
-restartGame :: Game Float -> Game Float
-restartGame g = startGame (_rands g) 1 -- reinicia no primeiro nivel
 
 -- Main que inicia todo o codigo
 main :: IO ()
