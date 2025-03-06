@@ -284,7 +284,6 @@ drawItem c it = Color c $ Translate x y $ rectangleSolid sx sy
     where (x, y) = _pos it
           (sx, sy) = _siz it
 
--- Função responsável por capturar entradas do teclado e modificar o estado do jogo
 eventH :: Event -> Game Float -> Game Float
 eventH (EventKey (SpecialKey KeyLeft) Down _ _)  g = g { _inputLeft = True }
 eventH (EventKey (SpecialKey KeyLeft) Up _ _)    g = g { _inputLeft = False }
@@ -292,19 +291,17 @@ eventH (EventKey (SpecialKey KeyRight) Down _ _) g = g { _inputRight = True }
 eventH (EventKey (SpecialKey KeyRight) Up _ _)   g = g { _inputRight = False }
 eventH (EventKey (SpecialKey KeySpace) Down _ _) g = g { _inputFire = True }
 eventH (EventKey (SpecialKey KeySpace) Up _ _)   g = g { _inputFire = False }
---TODO tem alguma coisa errada aqui, já que sempre que o jogador pressiona enter o jogo aparece por uma frame
 eventH (EventKey (SpecialKey KeyEnter) Down _ _) g
   | _status g == Lost = g { _status = EnteringName }
-  | _status g == EnteringName = g { _status = Running, _playerName = "" } -- Salva a pontuação e reinicia o jogo
-eventH (EventKey (SpecialKey f1) Down _ _) g
+  | _status g == EnteringName = unsafePerformIO $ do
+      saveScore g
+      return $ g { _status = Running, _playerName = "" } 
+eventH (EventKey (SpecialKey KeyF1) Down _ _) g
   | _status g == Lost = restartGame g
--- Função de inserir nome
 eventH (EventKey (Char c) Down _ _) g
   | _status g == EnteringName = g { _playerName = _playerName g ++ [c] }
--- Função para apagar o nome ao pressionar Backspace
 eventH (EventKey (SpecialKey KeyBackspace) Down _ _) g
   | _status g == EnteringName = g { _playerName = init (_playerName g) }
-
 eventH _ g = g
 
 -- Função responsável por atualizar o jogo mesmo que o jogador nao esteja interagindo com jogo
