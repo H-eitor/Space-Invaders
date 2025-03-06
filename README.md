@@ -12,10 +12,10 @@ Projeto na linguagem Haskell para a disciplina de PLP
 
 ## Passo a Passo para a intalação:
 
-- 1º Passo: clonar o diretorio do jogo.
+- 1º Passo: clonar o diretorio do jogo utilizando o terminal.
   - git clone https://github.com/H-eitor/Space-Invaders
 
-- 2º Passo: Rodar os seguintes comandos no terminal estando dentro do diretorio do jogo para instalar as bibliotecas usadas.
+- 2º Passo: Rodar os seguintes comandos no terminal, estando dentro do diretorio do jogo, para instalar as bibliotecas usadas.
   - cabal install --lib gloss --package-env .
   - cabal install --lib containers --package-env .
   - cabal install --lib random --package-env .
@@ -28,7 +28,7 @@ Projeto na linguagem Haskell para a disciplina de PLP
      - [arch linux] sudo pacman -S freeglut 
      - [Mint, Debian, Ubuntu, ElementaryOs] sudo apt-get install freeglut3-dev
 
-- 3º Passo: compilar o código do jogo
+- 3º Passo: compilar o código do jogo, dentro do terminal
   - ghc main.hs
 
   -> pode ser que o comando anterior não compile corretamente dependendo do sistema operacional, neste caso tente expor as bibliotecas, exemplos:
