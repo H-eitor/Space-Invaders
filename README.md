@@ -25,5 +25,5 @@ Projeto na linguagem Haskell para a disciplina de PLP
 ## Grupo:
 - Rafael Alencar Adelino de Lima - 123110785
 - Isaque Esdras Rocha Cavalcante - 123110685
-- Heitor Souza Alves - 12311
-- Luiz 
+- Heitor de Souza Alves - 123110811
+- Luiz da Costa Araujo Bronzeado Neto - 123110804
