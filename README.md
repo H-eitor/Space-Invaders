@@ -11,7 +11,7 @@ Projeto na linguagem Haskell para a disciplina de PLP
 
 
 ## Passo a Passo para a intalação:
-Para windows: 
+
 - 1º Passo: clonar o diretorio do jogo.
   - git clone https://github.com/H-eitor/Space-Invaders
 
@@ -23,7 +23,7 @@ Para windows:
   - cabal install --lib bytestring --package-env .
   - cabal install --lib csv --package-env .
   - cabal install --lib OpenGL GLUT --package-env .
-  -> Caso esteja no linux ou algum derivado, pode ser necessário instalar o pacote freeglut usando o seu package manager, neste caso:
+-> Caso esteja no linux ou algum derivado, pode ser necessário instalar o pacote freeglut usando o seu package manager, neste caso:
   - [arch linux] sudo pacman -S freeglut 
   - [Mint, Debian, Ubuntu, ElementaryOs] sudo apt-get install freeglut3-dev
 - 3º Passo: compilar o código do jogo
