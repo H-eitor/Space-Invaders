@@ -24,9 +24,9 @@ Projeto na linguagem Haskell para a disciplina de PLP
   - cabal install --lib csv --package-env .
   - cabal install --lib OpenGL GLUT --package-env .
 
--> Caso esteja no linux ou algum derivado, pode ser necessário instalar o pacote freeglut usando o seu package manager, neste caso:
-  - [arch linux] sudo pacman -S freeglut 
-  - [Mint, Debian, Ubuntu, ElementaryOs] sudo apt-get install freeglut3-dev
+ -> Caso esteja no linux ou algum derivado, pode ser necessário instalar o pacote freeglut usando o seu package manager, neste caso:
+   - [arch linux] sudo pacman -S freeglut 
+   - [Mint, Debian, Ubuntu, ElementaryOs] sudo apt-get install freeglut3-dev
 
 - 3º Passo: compilar o código do jogo
   - ghc main.hs
