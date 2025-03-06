@@ -28,6 +28,8 @@ Para windows:
 
 - 4º Passo: executar o jogo diretamente pelo main.exe que foi criado apartir da compilação do código
 
+- IMPORTANTE: Para evitar qualquer erro é recomendável desativar o Windows Defender (não existe nenhuma ameaça no executavel mas alguns computadores podem reclamar)
+
 
 ## Grupo:
 - Rafael Alencar Adelino de Lima - 123110785
