@@ -9,8 +9,10 @@ Projeto na linguagem Haskell para a disciplina de PLP
   aparece o Chefão, que tem 10 vidas, diferente dos inimigos normais. O jogo é um ciclo com o objetivo do jogador obter a maior   pontuação possível.
 
 
-## Códigos no terminal:
-
+## Passo a Passo para a intalação:
+Para windows: 
+- 1º: clonar o diretorio do jogo:
+- 
 - cabal install --lib gloss --package-env .
 - cabal install --lib containers --package-env .
 - cabal install --lib random --package-env .
