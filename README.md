@@ -12,7 +12,7 @@ Projeto na linguagem Haskell para a disciplina de PLP
 ## Passo a Passo para a intalação:
 Para windows: 
 - 1º Passo: clonar o diretorio do jogo
- - git clone https://github.com/H-eitor/Space-Invaders
+  - git clone https://github.com/H-eitor/Space-Invaders
 
 - 2º Passo: Rodas os seguintes comandos dentro do diretorio do jogo
   - cabal install --lib gloss --package-env .
