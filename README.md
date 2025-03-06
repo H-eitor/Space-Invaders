@@ -1,7 +1,6 @@
 # SPACE INVADERS
 Projeto na linguagem Haskell para a disciplina de PLP
 
-<img src=".github/3326e583-0a2e-4543-b31a-0b23fc5b71f9.jpg" width="100%">
 
 ## Resumo:
   O projeto implementa o jogo de arcade Space Invaders na linguagem funcional Haskel.
