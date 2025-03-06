@@ -12,22 +12,22 @@ Projeto na linguagem Haskell para a disciplina de PLP
 ## Passo a Passo para a intalação:
 Para windows: 
 - 1º Passo: clonar o diretorio do jogo
- git clone https://github.com/H-eitor/Space-Invaders
+ - git clone https://github.com/H-eitor/Space-Invaders
 
 - 2º Passo: Rodas os seguintes comandos dentro do diretorio do jogo
-  cabal install --lib gloss --package-env .
-  cabal install --lib containers --package-env .
-  cabal install --lib random --package-env .
-  cabal install --lib directory-1.3.7.1 --package-env .
-  cabal install --lib bytestring --package-env .
-  cabal install --lib csv --package-env .
-  cabal install OpenGL GLUT
-  ghc -lglut -lGL -lGLU main.hs
+  - cabal install --lib gloss --package-env .
+  - cabal install --lib containers --package-env .
+  - cabal install --lib random --package-env .
+  - cabal install --lib directory-1.3.7.1 --package-env .
+  - cabal install --lib bytestring --package-env .
+  - cabal install --lib csv --package-env .
+  - cabal install OpenGL GLUT
+  - ghc -lglut -lGL -lGLU main.hs
   
-  - 3º Passo: compilar o código do jogo
-  gch main.hs
+- 3º Passo: compilar o código do jogo
+  - gch main.hs
 
-  - 4º Passo: executar o jogo diretamente pelo main.exe que foi criado apartir da compilação do código
+- 4º Passo: executar o jogo diretamente pelo main.exe que foi criado apartir da compilação do código
 
 
 ## Grupo:
