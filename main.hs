@@ -18,7 +18,7 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as BC
 import GHC.Generics
 import System.IO.Unsafe
-import Data.List (sortBy)
+import Data.List (sortBy, intercalate)
 import Data.Ord (comparing)
 
 
@@ -56,8 +56,8 @@ data Game x = Game
     , _playerName :: String }
 
 data Player = Player
-    { name :: String
-    , score :: Int } deriving (Show, Generic)
+    { nickname :: String
+    , highscore :: Int } deriving (Show, Generic)
 
 -- FUNCOES AUXILIARES:
 
@@ -261,7 +261,7 @@ saveScore g =  do
 -- Função responsável por renderizar a tela do jogo com base no estado atual
 displayH :: Game Float -> Picture
 displayH g = case _status g of
-    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", scoreText, livesText]
+    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", placarText, scoreText, livesText]
     EnteringName -> pictures [enterNameText "ENTER YOUR NAME:", nameText, continueText "Press [ENTER] to save"]
     _    -> pictures $ scoreText : livesText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
     where
@@ -271,10 +271,12 @@ displayH g = case _status g of
         shields = map (drawItem blue) (_shields g)
         invaders = map (drawItem red) (_invaders g)
 
+        placarList = take 5 $ sortBy (flip $ comparing highscore) (recordToPlayer getPlayerCSV)
+        placarText = pictures $ take 5 [Color white $ Translate (-200) (100 - y) $ Scale 0.3 0.3 $ Text (nickname p ++ ": " ++ show (highscore p)) | y <- [0, 50..250], p <- placarList ]
         scoreText = Color white $ Translate (-380) 260 $ Scale 0.3 0.3 $ Text ("Score: " ++ show (_score g))
         livesText = Color white $ Translate (-380) (-280) $ Scale 0.3 0.3 $ Text ("Lives: " ++ show (_lives g))
-        gameOverText msg = Color white $ Translate (-200) 50 $ Scale 0.5 0.5 $ Text msg
-        continueText msg = Color white $ Translate (-200) 10 $ Scale 0.1 0.1 $ Text msg
+        gameOverText msg = Color white $ Translate (-200) 200 $ Scale 0.5 0.5 $ Text msg
+        continueText msg = Color white $ Translate (-200) (-30) $ Scale 0.1 0.1 $ Text msg
         enterNameText msg = Color white $ Translate (-200) 30 $ Scale 0.2 0.2 $ Text msg
         nameText = Color white $ Translate 90 30 $ Scale 0.2 0.2 $ Text (_playerName g)
 
@@ -341,7 +343,7 @@ playerToCSV :: String -> Int -> String
 playerToCSV name score = "\n" ++ name ++ "," ++ show score
 
 playerObjToCSV :: Player -> String
-playerObjToCSV p = "\n" ++ name p ++ "," ++ show (score p)
+playerObjToCSV p = "\n" ++ nickname p ++ "," ++ show (highscore p)
 
 savePlayerCSV :: String -> Int -> IO()
 savePlayerCSV name score = do
@@ -356,8 +358,8 @@ playerListToCSV = concatMap playerObjToCSV
 orderCSV :: IO()
 orderCSV = do
     let playerList = recordToPlayer getPlayerCSV
-    let playerListOrd = take 5 $ sortBy (flip $ comparing score) playerList
+    let playerListOrd = take 5 $ sortBy (flip $ comparing highscore) playerList
     let top5 = take 5 playerListOrd
-    B.writeFile "../Temp.csv" $ BC.pack ("name,score" ++ playerListToCSV top5)
+    B.writeFile "Temp.csv" $ BC.pack ("name,score" ++ playerListToCSV top5)
     removeFile "placar.csv"
-    renameFile "../Temp.csv" "placar.csv"
+    renameFile "Temp.csv" "placar.csv"
