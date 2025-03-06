@@ -22,7 +22,6 @@ Para windows:
   - cabal install --lib bytestring --package-env .
   - cabal install --lib csv --package-env .
   - cabal install --lib OpenGL GLUT --package-env .
-  - ghc -lglut -lGL -lGLU main.hs
   
 - 3º Passo: compilar o código do jogo
   - gch main.hs
