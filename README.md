@@ -31,9 +31,9 @@ Projeto na linguagem Haskell para a disciplina de PLP
 - 3º Passo: compilar o código do jogo
   - ghc main.hs
 
--> pode ser que o comando anterior não compile corretamente dependendo do sistema operacional, neste caso tente expor as bibliotecas, exemplos:
-  - ghc -package gloss main.hs 
-  - ghc -package gloss -package directories main.hs
+  -> pode ser que o comando anterior não compile corretamente dependendo do sistema operacional, neste caso tente expor as bibliotecas, exemplos:
+    - ghc -package gloss main.hs 
+    - ghc -package gloss -package directories main.hs
 
 - 4º Passo: executar o jogo diretamente pelo executável que foi criado apartir da compilação do código
 
