@@ -258,12 +258,11 @@ saveScore g =  do
     savePlayerCSV (_playerName g) (_score g)
     orderCSV
 
--- Função responsável por renderizar a tela do jogo com base no estado atual
-displayH :: Game Float -> Picture
-displayH g = case _status g of
-    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", placarText, scoreText, livesText]
+displayH :: Game Float -> Int -> Picture
+displayH g highScore = case _status g of
+    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", scoreText, livesText, highScoreText]
     EnteringName -> pictures [enterNameText "ENTER YOUR NAME:", nameText, continueText "Press [ENTER] to save"]
-    _    -> pictures $ scoreText : livesText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
+    _    -> pictures $ scoreText : livesText : highScoreText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
     where
         player = drawItem green (_player g)
         playerBullets = map (drawItem yellow) (_playerBullets g)
@@ -271,12 +270,11 @@ displayH g = case _status g of
         shields = map (drawItem blue) (_shields g)
         invaders = map (drawItem red) (_invaders g)
 
-        placarList = take 5 $ sortBy (flip $ comparing highscore) (recordToPlayer getPlayerCSV)
-        placarText = pictures $ take 5 [Color white $ Translate (-200) (100 - y) $ Scale 0.3 0.3 $ Text (nickname p ++ ": " ++ show (highscore p)) | y <- [0, 50..250], p <- placarList ]
         scoreText = Color white $ Translate (-380) 260 $ Scale 0.3 0.3 $ Text ("Score: " ++ show (_score g))
         livesText = Color white $ Translate (-380) (-280) $ Scale 0.3 0.3 $ Text ("Lives: " ++ show (_lives g))
-        gameOverText msg = Color white $ Translate (-200) 200 $ Scale 0.5 0.5 $ Text msg
-        continueText msg = Color white $ Translate (-200) (-30) $ Scale 0.1 0.1 $ Text msg
+        highScoreText = Color white $ Translate 130 260 $ Scale 0.3 0.3 $ Text ("Hi-Score: " ++ show highScore)
+        gameOverText msg = Color white $ Translate (-200) 50 $ Scale 0.5 0.5 $ Text msg
+        continueText msg = Color white $ Translate (-200) 10 $ Scale 0.1 0.1 $ Text msg
         enterNameText msg = Color white $ Translate (-200) 30 $ Scale 0.2 0.2 $ Text msg
         nameText = Color white $ Translate 90 30 $ Scale 0.2 0.2 $ Text (_playerName g)
 
@@ -317,10 +315,11 @@ restartGame g = startGame (_rands g) 1 -- reinicia no primeiro nivel
 -- Main que inicia todo o codigo
 main :: IO ()
 main = do
+    highScore <- loadHighScore
     myRands <- randoms <$> newStdGen
     let myGame = startGame myRands 1
     let myWindow = InWindow "haskell-invaders" (800, 600) (0, 0)
-    play myWindow black 30 myGame displayH eventH idleH
+    play myWindow black 30 myGame (`displayH` highScore) eventH idleH
 
 toInt :: String -> Int
 toInt s = read s :: Int
@@ -363,3 +362,20 @@ orderCSV = do
     B.writeFile "Temp.csv" $ BC.pack ("name,score" ++ playerListToCSV top5)
     removeFile "placar.csv"
     renameFile "Temp.csv" "placar.csv"
+
+loadHighScore :: IO Int
+loadHighScore = do
+    exists <- doesFileExist "placar.csv"
+    if exists
+        then do
+            contents <- readFile "placar.csv"
+            let csv = parseCSV "placar.csv" contents
+            case csv of
+                Right records -> do
+                    let scores = map (read . (!!1)) (tail records) :: [Int]
+                    if null scores
+                        then return 0
+                        else return (maximum scores)
+                Left _ -> return 0
+        else return 0
+
