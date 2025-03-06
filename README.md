@@ -28,7 +28,7 @@ Projeto na linguagem Haskell para a disciplina de PLP
   - [Mint, Debian, Ubuntu, ElementaryOs] sudo apt-get install freeglut3-dev
 - 3º Passo: compilar o código do jogo
   - ghc main.hs
-  -> pode ser que o comando anterior não compile corretamente dependendo do sistema operacional, neste caso tente expor as bibliotecas, exemplos:
+-> pode ser que o comando anterior não compile corretamente dependendo do sistema operacional, neste caso tente expor as bibliotecas, exemplos:
   - ghc -package gloss main.hs 
   - ghc -package gloss -package directories main.hs
 
