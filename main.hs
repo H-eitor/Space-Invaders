@@ -261,9 +261,9 @@ saveScore g =  do
 -- Função responsável por renderizar a tela do jogo com base no estado atual
 displayH :: Game Float -> Picture
 displayH g = case _status g of
-    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", scoreText, livesText]
+    Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", scoreText, livesText, highScoreText]
     EnteringName -> pictures [enterNameText "ENTER YOUR NAME:", nameText, continueText "Press [ENTER] to save"]
-    _    -> pictures $ scoreText : livesText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
+    _    -> pictures $ scoreText : livesText : highScoreText : player : playerBullets ++ enemyBullets ++ shields ++ invaders
     where
         player = drawItem green (_player g)
         playerBullets = map (drawItem yellow) (_playerBullets g)
@@ -273,6 +273,7 @@ displayH g = case _status g of
 
         scoreText = Color white $ Translate (-380) 260 $ Scale 0.3 0.3 $ Text ("Score: " ++ show (_score g))
         livesText = Color white $ Translate (-380) (-280) $ Scale 0.3 0.3 $ Text ("Lives: " ++ show (_lives g))
+        highScoreText = Color white $ Translate 120 260 $ Scale 0.3 0.3 $ Text ("Hi-Score: " ++ show (unsafePerformIO getHighScore))
         gameOverText msg = Color white $ Translate (-200) 50 $ Scale 0.5 0.5 $ Text msg
         continueText msg = Color white $ Translate (-200) 10 $ Scale 0.1 0.1 $ Text msg
         enterNameText msg = Color white $ Translate (-200) 30 $ Scale 0.2 0.2 $ Text msg
@@ -284,7 +285,6 @@ drawItem c it = Color c $ Translate x y $ rectangleSolid sx sy
     where (x, y) = _pos it
           (sx, sy) = _siz it
 
--- Função responsável por capturar entradas do teclado e modificar o estado do jogo
 eventH :: Event -> Game Float -> Game Float
 eventH (EventKey (SpecialKey KeyLeft) Down _ _)  g = g { _inputLeft = True }
 eventH (EventKey (SpecialKey KeyLeft) Up _ _)    g = g { _inputLeft = False }
@@ -292,19 +292,17 @@ eventH (EventKey (SpecialKey KeyRight) Down _ _) g = g { _inputRight = True }
 eventH (EventKey (SpecialKey KeyRight) Up _ _)   g = g { _inputRight = False }
 eventH (EventKey (SpecialKey KeySpace) Down _ _) g = g { _inputFire = True }
 eventH (EventKey (SpecialKey KeySpace) Up _ _)   g = g { _inputFire = False }
---TODO tem alguma coisa errada aqui, já que sempre que o jogador pressiona enter o jogo aparece por uma frame
 eventH (EventKey (SpecialKey KeyEnter) Down _ _) g
   | _status g == Lost = g { _status = EnteringName }
-  | _status g == EnteringName = g { _status = Running, _playerName = "" } -- Salva a pontuação e reinicia o jogo
-eventH (EventKey (SpecialKey f1) Down _ _) g
+  | _status g == EnteringName = unsafePerformIO $ do
+      saveScore g
+      return $ g { _status = Running, _playerName = "" } 
+eventH (EventKey (SpecialKey KeyF1) Down _ _) g
   | _status g == Lost = restartGame g
--- Função de inserir nome
 eventH (EventKey (Char c) Down _ _) g
   | _status g == EnteringName = g { _playerName = _playerName g ++ [c] }
--- Função para apagar o nome ao pressionar Backspace
 eventH (EventKey (SpecialKey KeyBackspace) Down _ _) g
   | _status g == EnteringName = g { _playerName = init (_playerName g) }
-
 eventH _ g = g
 
 -- Função responsável por atualizar o jogo mesmo que o jogador nao esteja interagindo com jogo
@@ -364,3 +362,14 @@ orderCSV = do
     B.writeFile "../Temp.csv" $ BC.pack ("name,score" ++ playerListToCSV top5)
     removeFile "placar.csv"
     renameFile "../Temp.csv" "placar.csv"
+
+-- Função para ler a maior pontuação do arquivo CSV
+getHighScore :: IO Int
+getHighScore = do
+    contents <- readFile "placar.csv"
+    let records = parseCSV "placar.csv" contents
+    case records of
+        Right csv -> do
+            let scores = map (read . (!!1)) (tail csv) :: [Int]
+            return $ if null scores then 0 else maximum scores
+        Left _ -> return 0
