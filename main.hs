@@ -1,9 +1,3 @@
--- Para esse projeto foram utilizadas as bibliotecas: 
--- Gloss: permite realizar renderização grafica na tela e eventos para a interface do jogo (a parte grafica consiste
--- nos jogadores, inimigos, disparos e escudos poderem aparecer de forma grafica e a interface consiste em poder realizar eventos e
--- atualizar o estado do jogo, ou seja, apertar um botao e o jgaodr diparar ou se mover, ou levar 3 disparos e o jogo acabar); 
--- Random: usado para criar numeros aleatorios (foi usada para determinar se inimigos devem atirar, velocidade dos projeteis dos inimigos, velocidade dos inimigos, etc);
--- Data.Map: fornece uma implementação de mapas (dicionarios) para o codigo (é utilizado para associar por exemplo uma posição de linha e coluna a um inimigo)
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use Down" #-}
 
@@ -258,6 +252,7 @@ saveScore g =  do
     savePlayerCSV (_playerName g) (_score g)
     orderCSV
 
+-- Função responsável por criar o display do jogo
 displayH :: Game Float -> Int -> Picture
 displayH g highScore = case _status g of
     Lost -> pictures [gameOverText "GAME OVER!", continueText "Press [F1] to Continue | press [ENTER] to save score", scoreText, livesText, highScoreText]
@@ -279,11 +274,16 @@ displayH g highScore = case _status g of
         nameText = Color white $ Translate 90 30 $ Scale 0.2 0.2 $ Text (_playerName g)
 
 -- Função responsável por desenhar um objeto na tela do jogo
+-- Parametros: c (cor do objeto), it (item a ser desenhado)
+-- Saida: Picture (representação visual do item)
 drawItem :: Color -> Item Float -> Picture
 drawItem c it = Color c $ Translate x y $ rectangleSolid sx sy
     where (x, y) = _pos it
           (sx, sy) = _siz it
 
+-- Função que processa os eventos de entrada do jogador
+-- Parametros: Event (evento de entrada), Game a (estado atual do jogo)
+-- Saida: Game a (estado atualizado do jogo)
 eventH :: Event -> Game Float -> Game Float
 eventH (EventKey (SpecialKey KeyLeft) Down _ _)  g = g { _inputLeft = True }
 eventH (EventKey (SpecialKey KeyLeft) Up _ _)    g = g { _inputLeft = False }
@@ -321,9 +321,11 @@ main = do
     let myWindow = InWindow "haskell-invaders" (800, 600) (0, 0)
     play myWindow black 30 myGame (`displayH` highScore) eventH idleH
 
+-- Função que transforma uma string em um inteiro
 toInt :: String -> Int
 toInt s = read s :: Int
 
+-- Função que converte uma linha CSV em um objeto de Player
 getPlayerCSV :: [Record]
 getPlayerCSV = do
     let file = unsafePerformIO ( readFile "placar.csv" )
@@ -332,18 +334,24 @@ getPlayerCSV = do
     where csvParseError csvFile = []
           csvParseDone = tail
 
+-- Função que converte um registro generico de um jogador para um objeto Player
 recordToPlayer :: [Record] -> [Player]
 recordToPlayer [] = []
 recordToPlayer (x:xs) = do
     let p = Player (head x) (toInt $ x!!1)
     p : recordToPlayer xs
 
+-- Função que converte um player para uma linha CSV
 playerToCSV :: String -> Int -> String
 playerToCSV name score = "\n" ++ name ++ "," ++ show score
-
+ 
+-- Função que converte um objeto para uma linha CSV
 playerObjToCSV :: Player -> String
 playerObjToCSV p = "\n" ++ nickname p ++ "," ++ show (highscore p)
 
+-- Função que salva a pontuação do jogador no arquivo CSV
+-- Parametros: String (nome do jogador), Int (pontuação do jogador)
+-- Saida: IO () (efeito colateral que grava os dados no arquivo)
 savePlayerCSV :: String -> Int -> IO()
 savePlayerCSV name score = do
     let p = playerToCSV name score
@@ -351,9 +359,13 @@ savePlayerCSV name score = do
     hPutStr f p
     hClose f
 
+-- Converte uma lista de objetos players para uma string CSV
 playerListToCSV :: [Player] -> String
 playerListToCSV = concatMap playerObjToCSV
 
+-- Função que ordena o arquivo CSV de pontuações em ordem decrescente
+-- Parametros: Nenhum
+-- Saida: IO () (efeito colateral que reescreve o arquivo ordenado)
 orderCSV :: IO()
 orderCSV = do
     let playerList = recordToPlayer getPlayerCSV
@@ -363,6 +375,9 @@ orderCSV = do
     removeFile "placar.csv"
     renameFile "Temp.csv" "placar.csv"
 
+-- Função que lê o maior score salvo no arquivo de pontuações
+-- Parametros: Nenhum
+-- Saida: IO Int (pontuação mais alta registrada)
 loadHighScore :: IO Int
 loadHighScore = do
     exists <- doesFileExist "placar.csv"
@@ -378,4 +393,3 @@ loadHighScore = do
                         else return (maximum scores)
                 Left _ -> return 0
         else return 0
-
