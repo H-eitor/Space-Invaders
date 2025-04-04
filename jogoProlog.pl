@@ -1,32 +1,37 @@
 :- use_module(library(pce)).
 :- use_module(library(time)).
 
-:- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1.
+:- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1.
 
 start :- 
     new(Window, picture('Space Invaders')),
     send(Window, background, black),
     send(Window, size, size(800, 600)),
-    send(Window, scrollbars, none),  % Desativa as barras de rolagem
-    send(Window, open_centered),    % Abre a janela centralizada
+    send(Window, scrollbars, none),
+    send(Window, open_centered),
 
     % Cria o jogador
     new(Player, box(70, 20)),
     send(Player, fill_pattern, colour(red)),
     send(Player, move, point(360, 550)),
     send(Window, display, Player),
-    retractall(player(_)),  % Limpa qualquer jogador anterior
-    assert(player(Player)),  % Armazena o jogador como um fato dinâmico
+    retractall(player(_)),
+    assert(player(Player)),
 
     % Inicializa as listas e variáveis de estado
     retractall(bullets(_)),
     retractall(enemies(_)),
     retractall(enemy_bullets(_)),
     retractall(enemy_direction(_)),
+    retractall(shields(_)),
     assert(bullets([])),
     assert(enemies([])),
     assert(enemy_bullets([])),
-    assert(enemy_direction(right)), % Direção inicial dos inimigos
+    assert(enemy_direction(right)),
+    assert(shields([])), % Lista de escudos
+
+    % Cria os escudos de proteção
+    create_shields(Window),
 
     % Cria os inimigos
     create_enemies(Window),
@@ -76,6 +81,42 @@ game_over(Window) :-
     send(Window, display, Text, point(TextX, TextY)),
     send(Window, flush).
 
+create_shields(Window) :-
+    retractall(shields(_)),
+    assert(shields([])),
+    
+    % Parâmetros dos escudos
+    ShieldWidth is 100,       % Largura de cada escudo
+    ShieldHeight is 14,       % Altura aumentada
+    HorizontalSpacing is 55,  % Espaço entre colunas
+    StartY is 420,            % Posição Y inicial
+    
+    % Calcula posição X inicial para centralizar
+    TotalWidth is (4*ShieldWidth) + (3*HorizontalSpacing),
+    StartX is (660 - TotalWidth) // 2,
+    
+    % Cria 5 colunas de escudos
+    between(0, 4, Col),
+    % Cria 4 linhas empilhadas (sem espaçamento vertical)
+    between(0, 3, Row),
+    
+    % Calcula posição (sem espaçamento vertical)
+    PosX is StartX + Col*(ShieldWidth + HorizontalSpacing),
+    PosY is StartY + Row*ShieldHeight,  % Linhas coladas
+    
+    % Cria cada bloco do escudo
+    new(Shield, box(ShieldWidth, ShieldHeight)),
+    send(Shield, fill_pattern, colour(cyan)),
+    send(Shield, pen, 0),  % Remove a borda para parecer contínuo
+    send(Shield, move, point(PosX, PosY)),
+    send(Window, display, Shield),
+    
+    % Adiciona à lista de escudos
+    retract(shields(Shields)),
+    assert(shields([Shield|Shields])),
+    fail.
+create_shields(_).
+
 current_timer(Timer) :-
     timer(Timer),
     object(Timer).
@@ -119,53 +160,88 @@ enemy_shoot(Window) :-
 update_enemy_bullets(Window) :-
     object(Window),
     enemy_bullets(Bullets),
-    player(Player),  % Obtém o jogador do banco de dados dinâmico
-    move_enemy_bullets(Bullets, Window, Player).
+    player(Player),
+    shields(Shields),
+    move_enemy_bullets(Bullets, Window, Player, Shields).
 
 % Move as balas inimigas e remove as que saíram da tela
-move_enemy_bullets([Bullet | Rest], Window, Player) :-
+move_enemy_bullets([], _, _, _).
+move_enemy_bullets([Bullet | Rest], Window, Player, Shields) :-
     (object(Bullet), object(Window), object(Player) ->
         get(Bullet, position, point(BX, BY)),
         get(Bullet, width, BW),
         get(Bullet, height, BH),
         NewBY is BY + 5,
         
-        get(Player, position, point(PX, PY)),
-        get(Player, width, PW),
-        get(Player, height, PH),
-        
-        (collision(BX, NewBY, BW, BH, PX, PY, PW, PH) ->
-            % Remove a bala
+        % Primeiro verifica colisão com escudos
+        (check_shield_collision(BX, NewBY, BW, BH, Shields, Window) ->
+            % Remove a bala que atingiu o escudo
             retract(enemy_bullets(Bullets)),
             select(Bullet, Bullets, NewBullets),
             assert(enemy_bullets(NewBullets)),
             free(Bullet),
-            
-            % Remove o jogador
-            free(Player),
-            retractall(player(_)),
-            
-            % Chama game over
-            game_over(Window)
+            move_enemy_bullets(Rest, Window, Player, Shields)
         ;
-            % Continua com o movimento normal
-            get(Window, height, WindowHeight),
-            (NewBY > WindowHeight ->
+            % Se não colidiu com escudo, verifica colisão com jogador
+            get(Player, position, point(PX, PY)),
+            get(Player, width, PW),
+            get(Player, height, PH),
+            
+            (collision(BX, NewBY, BW, BH, PX, PY, PW, PH) ->
+                % Remove a bala
                 retract(enemy_bullets(Bullets)),
                 select(Bullet, Bullets, NewBullets),
                 assert(enemy_bullets(NewBullets)),
                 free(Bullet),
-                send(Window, redraw)
+                
+                % Remove o jogador
+                free(Player),
+                retractall(player(_)),
+                
+                % Chama game over
+                game_over(Window)
             ;
-                send(Bullet, move, point(BX, NewBY)),
-                move_enemy_bullets(Rest, Window, Player)
+                % Continua com o movimento normal
+                get(Window, height, WindowHeight),
+                (NewBY > WindowHeight ->
+                    retract(enemy_bullets(Bullets)),
+                    select(Bullet, Bullets, NewBullets),
+                    assert(enemy_bullets(NewBullets)),
+                    free(Bullet),
+                    send(Window, redraw)
+                ;
+                    send(Bullet, move, point(BX, NewBY)),
+                    move_enemy_bullets(Rest, Window, Player, Shields)
+                )
             )
         )
     ;
-        move_enemy_bullets(Rest, Window, Player)
+        move_enemy_bullets(Rest, Window, Player, Shields)
     ).
 
-% O resto do código permanece o mesmo...
+
+check_shield_collision(BX, BY, BW, BH, [Shield|Rest], Window) :-
+    (object(Shield), object(Window) ->
+        get(Shield, position, point(SX, SY)),
+        get(Shield, width, SW),
+        get(Shield, height, SH),
+        
+        (collision(BX, BY, BW, BH, SX, SY, SW, SH) ->
+            % Remove o escudo atingido
+            retract(shields(Shields)),
+            select(Shield, Shields, NewShields),
+            assert(shields(NewShields)),
+            free(Shield),
+            send(Window, redraw),
+            true
+        ;
+            check_shield_collision(BX, BY, BW, BH, Rest, Window)
+        )
+    ;
+        check_shield_collision(BX, BY, BW, BH, Rest, Window)
+    ).
+check_shield_collision(_, _, _, _, [], _) :- fail.
+
 move_enemies(Window) :-
     object(Window),  % Verifica se a janela ainda existe
     enemy_direction(Direction),
