@@ -1,24 +1,31 @@
 :- use_module(library(pce)).
 :- use_module(library(time)).
 
+:- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1.
+
 start :- 
     new(Window, picture('Space Invaders')),
     send(Window, background, black),
     send(Window, size, size(800, 600)),
-    send(Window, open),
+    send(Window, scrollbars, none),  % Desativa as barras de rolagem
+    send(Window, open_centered),    % Abre a janela centralizada
 
     % Cria o jogador
     new(Player, box(70, 20)),
     send(Player, fill_pattern, colour(red)),
     send(Player, move, point(360, 550)),
     send(Window, display, Player),
+    retractall(player(_)),  % Limpa qualquer jogador anterior
+    assert(player(Player)),  % Armazena o jogador como um fato dinâmico
 
     % Inicializa as listas e variáveis de estado
     retractall(bullets(_)),
     retractall(enemies(_)),
+    retractall(enemy_bullets(_)),
     retractall(enemy_direction(_)),
     assert(bullets([])),
     assert(enemies([])),
+    assert(enemy_bullets([])),
     assert(enemy_direction(right)), % Direção inicial dos inimigos
 
     % Cria os inimigos
@@ -30,12 +37,48 @@ start :-
     
     new(EnemyTimer, timer(0.05, message(@prolog, move_enemies, Window))),
     send(EnemyTimer, start),
+    
+    % Timer para inimigos atirarem
+    new(EnemyShootTimer, timer(1.5, message(@prolog, enemy_shoot, Window))),
+    send(EnemyShootTimer, start),
+    
+    % Timer para atualizar balas dos inimigos
+    new(EnemyBulletTimer, timer(0.01, message(@prolog, update_enemy_bullets, Window))),
+    send(EnemyBulletTimer, start),
 
     % Configura controles do teclado
     send(Window, recogniser, new(K, key_binding(@nil, argument))),
     send(K, function, 'cursor_left', message(@prolog, move_left, Player, Window)),
     send(K, function, 'cursor_right', message(@prolog, move_right, Player, Window)),
     send(K, function, 'SPC', message(@prolog, player_shoot, Player, Window)).
+
+game_over(Window) :-
+    % Para todos os timers
+    forall(current_timer(Timer), send(Timer, stop)),
+    
+    % Remove todos os objetos visíveis
+    send(Window, clear),  % Limpa toda a janela
+    
+    % Remove todos os fatos dinâmicos
+    retractall(bullets(_)),
+    retractall(enemies(_)),
+    retractall(enemy_bullets(_)),
+    retractall(enemy_direction(_)),
+    retractall(player(_)),
+    
+    % Cria mensagem de game over em uma tela limpa
+    new(Text, text('GAME OVER')),
+    send(Text, font, font(arial, bold, 36)),
+    send(Text, colour, red),
+    get(Window, size, size(W, H)),
+    TextX is W/2 - 100,
+    TextY is H/2 - 18,
+    send(Window, display, Text, point(TextX, TextY)),
+    send(Window, flush).
+
+current_timer(Timer) :-
+    timer(Timer),
+    object(Timer).
 
 % Cria uma fileira de 5 inimigos
 create_enemies(Window) :-
@@ -52,6 +95,77 @@ create_enemies(Window) :-
     fail.
 create_enemies(_).
 
+% Inimigos atiram
+enemy_shoot(Window) :-
+    object(Window),
+    enemies(Enemies),
+    Enemies \= [],
+    % Escolhe um inimigo aleatório para atirar
+    random_member(Shooter, Enemies),
+    object(Shooter),
+    get(Shooter, position, point(X, Y)),
+    get(Shooter, width, EWidth),
+    new(Bullet, box(3, 15)),
+    send(Bullet, fill_pattern, colour(blue)),
+    BulletX is X + EWidth/2 - 1.5,  % Centraliza o tiro
+    BulletY is Y + 30,  % Sai da base do inimigo
+    send(Bullet, move, point(BulletX, BulletY)),
+    send(Window, display, Bullet),
+    % Adiciona bala à lista de balas inimigas
+    retract(enemy_bullets(Bullets)),
+    assert(enemy_bullets([Bullet | Bullets])).
+
+% Atualiza a posição das balas inimigas
+update_enemy_bullets(Window) :-
+    object(Window),
+    enemy_bullets(Bullets),
+    player(Player),  % Obtém o jogador do banco de dados dinâmico
+    move_enemy_bullets(Bullets, Window, Player).
+
+% Move as balas inimigas e remove as que saíram da tela
+move_enemy_bullets([Bullet | Rest], Window, Player) :-
+    (object(Bullet), object(Window), object(Player) ->
+        get(Bullet, position, point(BX, BY)),
+        get(Bullet, width, BW),
+        get(Bullet, height, BH),
+        NewBY is BY + 5,
+        
+        get(Player, position, point(PX, PY)),
+        get(Player, width, PW),
+        get(Player, height, PH),
+        
+        (collision(BX, NewBY, BW, BH, PX, PY, PW, PH) ->
+            % Remove a bala
+            retract(enemy_bullets(Bullets)),
+            select(Bullet, Bullets, NewBullets),
+            assert(enemy_bullets(NewBullets)),
+            free(Bullet),
+            
+            % Remove o jogador
+            free(Player),
+            retractall(player(_)),
+            
+            % Chama game over
+            game_over(Window)
+        ;
+            % Continua com o movimento normal
+            get(Window, height, WindowHeight),
+            (NewBY > WindowHeight ->
+                retract(enemy_bullets(Bullets)),
+                select(Bullet, Bullets, NewBullets),
+                assert(enemy_bullets(NewBullets)),
+                free(Bullet),
+                send(Window, redraw)
+            ;
+                send(Bullet, move, point(BX, NewBY)),
+                move_enemy_bullets(Rest, Window, Player)
+            )
+        )
+    ;
+        move_enemy_bullets(Rest, Window, Player)
+    ).
+
+% O resto do código permanece o mesmo...
 move_enemies(Window) :-
     object(Window),  % Verifica se a janela ainda existe
     enemy_direction(Direction),
@@ -198,6 +312,12 @@ check_bullet_enemy_collisions([Bullet|RestBullets], Enemies, Window) :-
     ;
         check_bullet_enemy_collisions(RestBullets, Enemies, Window)
     ).
+
+check_player_hit(Window, Bullets) :-
+    object(Window),
+    findall(B, (member(B, Bullets), object(B)), ExistingBullets),
+    retractall(enemy_bullets(_)),
+    assert(enemy_bullets(ExistingBullets)).
 
 check_enemy_hit(_, _, _, _, _, [], _).
 check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
