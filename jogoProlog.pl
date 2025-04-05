@@ -62,10 +62,18 @@ start :-
     % Timer para inimigos atirarem
     new(EnemyShootTimer, timer(1.5, message(@prolog, enemy_shoot, Window))),
     send(EnemyShootTimer, start),
+
+    % Corrigido: parêntese fechado corretamente
+    new(CollisionTimer, timer(0.1, message(@prolog, check_enemies_position, Window))),
+    send(CollisionTimer, start),
+    assert(timer(CollisionTimer)),
     
     % Timer para atualizar balas dos inimigos
     new(EnemyBulletTimer, timer(0.01, message(@prolog, update_enemy_bullets, Window))),
     send(EnemyBulletTimer, start),
+
+    new(EnemyDownTimer, timer(5, message(@prolog, move_enemies_down, Window))),
+    send(EnemyDownTimer, start),
 
     % Configura controles do teclado
     send(Window, recogniser, new(K, key_binding(@nil, argument))),
@@ -250,6 +258,43 @@ move_enemy_bullets([Bullet | Rest], Window, Player, Shields) :-
         move_enemy_bullets(Rest, Window, Player, Shields)
     ).
 
+check_enemy_shield_collision(Window) :-
+    enemies(Enemies),
+    shields(Shields),
+    check_enemy_shield_collision_list(Enemies, Shields, Window).
+
+check_enemy_shield_collision_list([], _, _).
+check_enemy_shield_collision_list([Enemy|RestEnemies], Shields, Window) :-
+    (object(Enemy), object(Window) ->
+        get(Enemy, position, point(EX, EY)),
+        get(Enemy, width, EW),
+        get(Enemy, height, EH),
+        check_enemy_with_shields(EX, EY, EW, EH, Shields, Window),
+        check_enemy_shield_collision_list(RestEnemies, Shields, Window)
+    ;
+        check_enemy_shield_collision_list(RestEnemies, Shields, Window)
+    ).
+
+check_enemy_with_shields(_, _, _, _, [], _).
+check_enemy_with_shields(EX, EY, EW, EH, [Shield|Rest], Window) :-
+    (object(Shield), object(Window) ->
+        get(Shield, position, point(SX, SY)),
+        get(Shield, width, SW),
+        get(Shield, height, SH),
+        
+        (collision(EX, EY, EW, EH, SX, SY, SW, SH) ->
+            % Remove o escudo atingido
+            retract(shields(Shields)),
+            select(Shield, Shields, NewShields),
+            assert(shields(NewShields)),
+            free(Shield),
+            send(Window, redraw)
+        ;
+            check_enemy_with_shields(EX, EY, EW, EH, Rest, Window)
+        )
+    ;
+        check_enemy_with_shields(EX, EY, EW, EH, Rest, Window)
+    ).
 
 check_shield_collision(BX, BY, BW, BH, [Shield|Rest], Window) :-
     (object(Shield), object(Window) ->
@@ -319,6 +364,45 @@ move_enemies_list([Enemy|Rest], Direction, WindowWidth, Window) :-
         move_enemies_list(Rest, Direction, WindowWidth, Window)
     ).
 
+% Predicado para mover todos os inimigos para baixo periodicamente
+move_enemies_down(Window) :-
+    object(Window),
+    enemies(Enemies),
+    move_all_enemies_down(Enemies, Window),
+    check_enemies_position(Window).
+
+check_enemies_position(Window) :-
+    enemies(Enemies),
+    player(Player),
+    object(Player),
+    get(Player, position, point(_, PY)),
+    (member(Enemy, Enemies), object(Enemy) ->
+        get(Enemy, position, point(_, EY)),
+        (EY >= PY ->  % Se inimigo alcançou ou passou a linha do jogador
+            free(Player),
+            retractall(player(_)),
+            game_over(Window)
+        ;
+            true
+        )
+    ;
+        true
+    ),
+    % Verifica também colisão com escudos
+    check_enemy_shield_collision(Window).
+
+% Auxiliar para mover cada inimigo individualmente para baixo
+move_all_enemies_down([], _).
+move_all_enemies_down([Enemy|Rest], Window) :-
+    (object(Enemy), object(Window) ->
+        get(Enemy, position, point(X, Y)),
+        NewY is Y + 30,  % Distância do movimento para baixo (ajuste conforme necessário)
+        send(Enemy, move, point(X, NewY)),
+        move_all_enemies_down(Rest, Window)
+    ;
+        move_all_enemies_down(Rest, Window)
+    ).
+
 % Movimento do jogador para a direita com limite
 move_right(Box, Window) :-
     object(Window),
@@ -372,31 +456,45 @@ player_shoot(Player, Window) :-
 update_bullets(Window) :-
     object(Window),
     bullets(Bullets),
-    move_bullets(Bullets, Window),
+    shields(Shields),
+    move_bullets(Bullets, Window, Shields),
     check_collisions(Window).
 
 % Move as balas e remove as que saíram da tela
-move_bullets([], _).
-move_bullets([Bullet | Rest], Window) :-
+move_bullets([], _, _).
+move_bullets([Bullet | Rest], Window, Shields) :-
     (object(Bullet), object(Window) ->
         get(Bullet, position, point(X, Y)),
+        get(Bullet, width, BW),
+        get(Bullet, height, BH),
         NewY is Y - 8,
-        send(Bullet, move, point(X, NewY)),
-        (NewY < 0 ->
+        
+        % Verifica colisão com escudos primeiro
+        (check_shield_collision(X, NewY, BW, BH, Shields, Window) ->
+            % Remove a bala que atingiu o escudo
             retract(bullets(Bullets)),
             select(Bullet, Bullets, NewBullets),
             assert(bullets(NewBullets)),
-            free(Bullet)
+            free(Bullet),
+            move_bullets(Rest, Window, Shields)
         ;
-            true
-        ),
-        move_bullets(Rest, Window)
+            % Se não colidiu com escudo, continua movimento normal
+            (NewY < 0 ->
+                retract(bullets(Bullets)),
+                select(Bullet, Bullets, NewBullets),
+                assert(bullets(NewBullets)),
+                free(Bullet)
+            ;
+                send(Bullet, move, point(X, NewY))
+            ),
+            move_bullets(Rest, Window, Shields)
+        )
     ;
         % Se o objeto bala não existe mais, remove da lista
         retract(bullets(Bullets)),
         select(Bullet, Bullets, NewBullets),
         assert(bullets(NewBullets)),
-        move_bullets(Rest, Window)
+        move_bullets(Rest, Window, Shields)
     ).
 
 % Verifica colisões entre balas e inimigos
