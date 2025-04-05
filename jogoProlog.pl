@@ -22,7 +22,7 @@ start :-
 
     % Cria o jogador
     new(Player, box(70, 20)),
-    send(Player, fill_pattern, colour(red)),
+    send(Player, fill_pattern, colour(green)),
     send(Player, move, point(360, 550)),
     send(Window, display, Player),
     retractall(player(_)),
@@ -56,7 +56,7 @@ start :-
     new(BulletTimer, timer(0.01, message(@prolog, update_bullets, Window))),
     send(BulletTimer, start),
     
-    new(EnemyTimer, timer(0.05, message(@prolog, move_enemies, Window))),
+    new(EnemyTimer, timer(0.04, message(@prolog, move_enemies, Window))),
     send(EnemyTimer, start),
     
     % Timer para inimigos atirarem
@@ -146,7 +146,7 @@ create_enemies(Window) :-
     between(1, 5, N),
     X is 150 + (N * 100),
     new(Enemy, box(50, 30)),
-    send(Enemy, fill_pattern, colour(green)),
+    send(Enemy, fill_pattern, colour(red)),
     send(Enemy, move, point(X, 100)),
     send(Window, display, Enemy),
     retract(enemies(Enemies)),
@@ -164,9 +164,9 @@ enemy_shoot(Window) :-
     object(Shooter),
     get(Shooter, position, point(X, Y)),
     get(Shooter, width, EWidth),
-    new(Bullet, box(3, 15)),
-    send(Bullet, fill_pattern, colour(blue)),
-    BulletX is X + EWidth/2 - 1.5,  % Centraliza o tiro
+    new(Bullet, box(4, 15)),
+    send(Bullet, fill_pattern, colour(orange)),
+    BulletX is X + EWidth/2 - 3,  % Centraliza o tiro
     BulletY is Y + 30,  % Sai da base do inimigo
     send(Bullet, move, point(BulletX, BulletY)),
     send(Window, display, Bullet),
@@ -274,65 +274,50 @@ check_shield_collision(BX, BY, BW, BH, [Shield|Rest], Window) :-
 check_shield_collision(_, _, _, _, [], _) :- fail.
 
 move_enemies(Window) :-
-    object(Window),  % Verifica se a janela ainda existe
+    object(Window),
     enemy_direction(Direction),
     enemies(Enemies),
     get(Window, width, WindowWidth),
-    move_enemies_list(Enemies, Direction, WindowWidth, Window),
-    check_enemies_bounds(Enemies, WindowWidth).  % Passa ambos os argumentos
+    move_enemies_list(Enemies, Direction, WindowWidth, Window).
 
-% Move cada inimigo individualmente
 move_enemies_list([], _, _, _).
 move_enemies_list([Enemy|Rest], Direction, WindowWidth, Window) :-
     (object(Enemy), object(Window) ->
         get(Enemy, position, point(X, Y)),
         get(Enemy, width, EWidth),
+        
+        % Definição da velocidade
+        Speed = 4,
+        
+        % Cálculo do movimento
         (Direction == right ->
-            NewX is X + 2,
+            NewX is X + Speed,
             MaxX is WindowWidth - EWidth,
-            (NewX > MaxX -> 
-                NewX = MaxX
-            ; 
-                true
+            (NewX >= MaxX ->
+                retract(enemy_direction(_)),
+                assert(enemy_direction(left)),
+                NewXFinal is MaxX
+            ;
+                NewXFinal = NewX
             )
         ;
             % Direction == left
-            NewX is X - 2,
-            (NewX < 0 -> 
-                NewX = 0
-            ; 
-                true
+            NewX is X - Speed,
+            (NewX =< 0 ->
+                retract(enemy_direction(_)),
+                assert(enemy_direction(right)),
+                NewXFinal = 0
+            ;
+                NewXFinal = NewX
             )
         ),
-        send(Enemy, move, point(NewX, Y)),
+        
+        % Aplica o movimento
+        send(Enemy, move, point(NewXFinal, Y)),
         move_enemies_list(Rest, Direction, WindowWidth, Window)
     ;
         move_enemies_list(Rest, Direction, WindowWidth, Window)
     ).
-
-% Verifica se os inimigos atingiram os limites da tela e muda a direção
-check_enemies_bounds(Enemies, WindowWidth) :-
-    (enemy_hit_bound(Enemies, WindowWidth) ->
-        retract(enemy_direction(CurrentDir)),
-        (CurrentDir == right ->
-            assert(enemy_direction(left))
-        ;
-            assert(enemy_direction(right))
-        )
-    ;
-        true
-    ).
-
-% Versão melhorada de enemy_hit_bound
-enemy_hit_bound([Enemy|_], WindowWidth) :-
-    object(Enemy),
-    get(Enemy, position, point(X, _)),
-    get(Enemy, width, EWidth),
-    (X =< 1 ; X + EWidth >= WindowWidth - 1),  % Margem de 1 pixel
-    !.
-enemy_hit_bound([_|Rest], WindowWidth) :-
-    enemy_hit_bound(Rest, WindowWidth).
-enemy_hit_bound([], _) :- fail.
 
 % Movimento do jogador para a direita com limite
 move_right(Box, Window) :-
@@ -364,9 +349,9 @@ player_shoot(Player, Window) :-
     (CurrentTime - LastTime >= Cooldown ->
         % Pode atirar
         get(Player, position, point(X, Y)),
-        new(Bullet, box(3, 15)),
+        new(Bullet, box(4, 15)),
         send(Bullet, fill_pattern, colour(yellow)),
-        NewX is X + 35,
+        NewX is X + 34,
         NewY is Y - 20,
         send(Bullet, move, point(NewX, NewY)),
         send(Window, display, Bullet),
