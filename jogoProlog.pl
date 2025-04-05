@@ -1,7 +1,7 @@
 :- use_module(library(pce)).
 :- use_module(library(time)).
 
-:- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1.
+:- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1, lives/1, lives_display/1, last_shot_time/1, shoot_cooldown/1.
 
 start :- 
     new(Window, picture('Space Invaders')),
@@ -9,6 +9,16 @@ start :-
     send(Window, size, size(800, 600)),
     send(Window, scrollbars, none),
     send(Window, open_centered),
+
+    % Inicializa vidas
+    retractall(lives(_)),
+    assert(lives(3)),
+
+    new(LivesText, text('Vidas: 3')),
+    send(LivesText, font, font(arial, bold, 25)),
+    send(LivesText, colour, white),
+    send(Window, display, LivesText, point(20, 580)),
+    assert(lives_display(LivesText)),
 
     % Cria o jogador
     new(Player, box(70, 20)),
@@ -35,6 +45,12 @@ start :-
 
     % Cria os inimigos
     create_enemies(Window),
+
+    % Inicializa o sistema de cooldown
+    retractall(last_shot_time(_)),
+    retractall(shoot_cooldown(_)),
+    assert(shoot_cooldown(0.8)),  
+    assert(last_shot_time(0)),
 
     % Timers para atualização do jogo
     new(BulletTimer, timer(0.01, message(@prolog, update_bullets, Window))),
@@ -70,6 +86,8 @@ game_over(Window) :-
     retractall(enemy_bullets(_)),
     retractall(enemy_direction(_)),
     retractall(player(_)),
+    retractall(lives(_)),
+    retractall(lives_display(_)),
     
     % Cria mensagem de game over em uma tela limpa
     new(Text, text('GAME OVER')),
@@ -194,12 +212,25 @@ move_enemy_bullets([Bullet | Rest], Window, Player, Shields) :-
                 assert(enemy_bullets(NewBullets)),
                 free(Bullet),
                 
-                % Remove o jogador
-                free(Player),
-                retractall(player(_)),
+                % Atualiza contador de vidas
+                retract(lives(Lives)),
+                NewLives is Lives - 1,
+                assert(lives(NewLives)),
+
+                lives_display(LivesDisplay),
+                send(LivesDisplay, string, string('Vidas: %d', NewLives)),
                 
-                % Chama game over
-                game_over(Window)
+                (NewLives =< 0 ->
+                    % Sem vidas restantes - game over
+                    free(Player),
+                    retractall(player(_)),
+                    game_over(Window)
+                ;
+                    % Ainda tem vidas - reposiciona o jogador
+                    get(Player, position, point(PX, _)),
+                    send(Player, move, point(PX, 550)),  % Mantém X, reseta Y
+                    send(Window, display, Player)
+                )
             ;
                 % Continua com o movimento normal
                 get(Window, height, WindowHeight),
@@ -311,7 +342,7 @@ move_right(Box, Window) :-
     get(Box, width, Width),
     get(Window, width, WindowWidth),
     MaxX is WindowWidth - Width,
-    NewX is min(X + 5, MaxX),
+    NewX is min(X + 22, MaxX),
     send(Box, move, point(NewX, Y)),
     send(Window, display, Box).
 
@@ -320,24 +351,37 @@ move_left(Box, Window) :-
     object(Window),
     object(Box),
     get(Box, position, point(X, Y)),
-    NewX is max(X - 5, 0),
+    NewX is max(X - 22, 0),
     send(Box, move, point(NewX, Y)),
     send(Window, display, Box).
 
-% Jogador atira
 player_shoot(Player, Window) :-
     object(Window),
     object(Player),
-    get(Player, position, point(X, Y)),
-    new(Bullet, box(3, 15)),
-    send(Bullet, fill_pattern, colour(yellow)),
-    NewX is X + 35,
-    NewY is Y - 20,
-    send(Bullet, move, point(NewX, NewY)),
-    send(Window, display, Bullet),
-    % Adiciona bala à lista de balas ativas
-    retract(bullets(Bullets)),
-    assert(bullets([Bullet | Bullets])).
+    get_time(CurrentTime),
+    last_shot_time(LastTime),
+    shoot_cooldown(Cooldown),
+    (CurrentTime - LastTime >= Cooldown ->
+        % Pode atirar
+        get(Player, position, point(X, Y)),
+        new(Bullet, box(3, 15)),
+        send(Bullet, fill_pattern, colour(yellow)),
+        NewX is X + 35,
+        NewY is Y - 20,
+        send(Bullet, move, point(NewX, NewY)),
+        send(Window, display, Bullet),
+        
+        % Atualiza lista de balas
+        retract(bullets(Bullets)),
+        assert(bullets([Bullet | Bullets])),
+        
+        % Registra o momento do tiro
+        retractall(last_shot_time(_)),
+        assert(last_shot_time(CurrentTime))
+    ;
+        % Ainda em cooldown - não faz nada
+        true
+    ).
 
 % Atualiza a posição de todas as balas
 update_bullets(Window) :-
