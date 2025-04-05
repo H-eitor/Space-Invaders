@@ -101,10 +101,7 @@ game_over(Window) :-
     new(Text, text('GAME OVER')),
     send(Text, font, font(arial, bold, 36)),
     send(Text, colour, red),
-    get(Window, size, size(W, H)),
-    TextX is W/2 - 100,
-    TextY is H/2 - 18,
-    send(Window, display, Text, point(TextX, TextY)),
+    send(Window, display, Text, point(300, 250)),
     send(Window, flush).
 
 create_shields(Window) :-
