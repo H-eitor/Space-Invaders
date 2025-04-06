@@ -4,13 +4,13 @@ Projeto na linguagem Haskell para a disciplina de PLP
 ![Alt text](https://res.cloudinary.com/cook-becker/image/fetch/q_auto:best,f_auto,w_1920,g_center/https://candb.com/site/candb/images/artwork/MarqueeHome.jpg "title image")
 
 ## Resumo:
-  O projeto implementa o jogo de arcade Space Invaders na linguagem funcional Haskel.
+  O projeto implementa o jogo de arcade Space Invaders na linguagem funcional Haskel e na linguagem lógica Prolog.
   
   O jogo original tem como seu objetivo o jogador atirar nos inimigos e ir pontuando a cada tiro acertado e inimigo eliminado    assim que todos os inimigos de uma tela são eliminados, aparecem mais inimigos para serem eliminados, na 5 rodada
   aparece o Chefão, que tem 10 vidas, diferente dos inimigos normais. O jogo é um ciclo com o objetivo do jogador obter a maior   pontuação possível.
 
 
-## Passo a Passo para a intalação:
+## Passo a Passo para a intalação Haskell:
 
 - 1º Passo: clonar o repositório do jogo.
     ```
