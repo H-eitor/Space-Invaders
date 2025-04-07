@@ -3,10 +3,14 @@
 :- include('shield.pl').
 :- include('enemies.pl').
 :- include('player.pl').
+:- include('score.pl').
 :- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1, lives/1, lives_display/1, last_shot_time/1, shoot_cooldown/1,
 current_phase/1, max_phases/1, boss_defeated/0, boss_health/1.
 
-start :- 
+start :-
+    write('Digite seu nome:'),
+    read(UserName),
+
     new(Window, picture('Space Invaders')),
     send(Window, background, black),
     send(Window, size, size(800, 600)),
@@ -28,6 +32,21 @@ start :-
     send(LivesText, colour, white),
     send(Window, display, LivesText, point(20, 580)),
     assert(lives_display(LivesText)),
+
+    % TESTE
+    retractall(username(_)),
+    assert(username('Nome')),
+
+    % Inicializa pontuação
+    retractall(score(_)),
+    assert(score(0)),
+
+    % Exibe a pontuação na tela
+    new(ScoreText, text('Pontos: 0')),
+    send(ScoreText, font, font(arial, bold, 25)),
+    send(ScoreText, colour, white),
+    send(Window, display, ScoreText, point(650, 580)),
+    assert(score_display(ScoreText)),
 
     % Cria o jogador
     new(Player, box(70, 20)),
@@ -88,7 +107,8 @@ start :-
     send(Window, recogniser, new(K, key_binding(@nil, argument))),
     send(K, function, 'cursor_left', message(@prolog, move_left, Player, Window)),
     send(K, function, 'cursor_right', message(@prolog, move_right, Player, Window)),
-    send(K, function, 'SPC', message(@prolog, player_shoot, Player, Window)).
+    send(K, function, 'SPC', message(@prolog, player_shoot, Player, Window)),
+    send(K, function, '\\e', message(@prolog, game_over, Window)). % TESTE
 
 game_over(Window) :-
     % Para todos os timers
@@ -97,6 +117,11 @@ game_over(Window) :-
     % Remove todos os objetos visíveis
     send(Window, clear),  % Limpa toda a janela
     
+    % Salva a pontuação em um arquivo CSV
+    score(Score),
+    username(UserName),
+    save_score_to_csv(UserName, Score),
+
     % Remove todos os fatos dinâmicos
     retractall(bullets(_)),
     retractall(enemies(_)),
@@ -106,13 +131,25 @@ game_over(Window) :-
     retractall(lives(_)),
     retractall(lives_display(_)),
     retractall(boss_health(_)),
-    
+    retractall(score(_)),
+    retractall(score_display(_)),
+
     % Cria mensagem de game over em uma tela limpa
     new(Text, text('GAME OVER')),
     send(Text, font, font(arial, bold, 36)),
     send(Text, colour, red),
     send(Window, display, Text, point(300, 250)),
-    send(Window, flush).
+    send(Window, flush),
+    % Mensagem de ESC
+    new(Esc, text('Pressione ESC para sair')),
+    send(Esc, font, font(arial, bold, 12)),
+    send(Esc, colour, red),
+    send(Window, display, Esc, point(300, 300)),
+    send(Window, flush),
+    % Placar
+    highscore(Window),
+    send(Window, recogniser, new(K, key_binding(@nil, argument))),
+    send(K, function, '\\e', message(@prolog, send, Window, destroy)).
 
 current_timer(Timer) :-
     timer(Timer),
@@ -243,7 +280,11 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Boss|_], Window) :-
         retract(enemies(_)),
         assert(enemies([])),
         send(Window, redraw),
-        check_phase_completion(Window)
+        check_phase_completion(Window),
+        % Aumenta a pontuação
+        score(CurrentScore),
+        NewScore is CurrentScore + 5,
+        update_score(NewScore)
     ;
         true
     ).
@@ -264,7 +305,11 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
             retract(enemies(Enemies)),
             select(Enemy, Enemies, NewEnemies),
             assert(enemies(NewEnemies)),
-            send(Window, redraw)
+            send(Window, redraw),
+            % Aumenta a pontuação
+            score(CurrentScore),
+            NewScore is CurrentScore + 1,
+            update_score(NewScore)
         ;
             check_enemy_hit(BX, BY, BW, BH, Bullet, Rest, Window)
         )
