@@ -5,7 +5,7 @@
 :- include('player.pl').
 :- include('score.pl').
 :- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1, lives/1, lives_display/1, last_shot_time/1, shoot_cooldown/1,
-current_phase/1, max_phases/1, boss_defeated/0, boss_health/1.
+current_phase/1, max_phases/1, boss_defeated/0, boss_health/1, enemy_down_timer/1.
 
 start :-
     write('Digite seu nome:'),
@@ -100,8 +100,14 @@ start :-
     new(EnemyBulletTimer, timer(0.01, message(@prolog, update_enemy_bullets, Window))),
     send(EnemyBulletTimer, start),
 
-    new(EnemyDownTimer, timer(5, message(@prolog, move_enemies_down, Window))),
-    send(EnemyDownTimer, start),
+    current_phase(Phase),
+    descida_intervalo(Phase, Interval),
+    (Interval > 0 ->
+        retractall(enemy_down_timer(_)), % Remove qualquer timer existente
+        new(EnemyDownTimer, timer(Interval, message(@prolog, move_enemies_down, Window))),
+        send(EnemyDownTimer, start),
+        assert(enemy_down_timer(EnemyDownTimer))
+    ; true),
 
     % Configura controles do teclado
     send(Window, recogniser, new(K, key_binding(@nil, argument))),
@@ -264,7 +270,7 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Boss|_], Window) :-
     select(Bullet, Bullets, NewBullets),
     assert(bullets(NewBullets)),
     
-    % Reduz a vida do chefe (sem barra visual)
+    % Reduz a vida do chefe
     retract(boss_health(Health)),
     NewHealth is Health - 1,
     assert(boss_health(NewHealth)),
@@ -283,7 +289,7 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Boss|_], Window) :-
         check_phase_completion(Window),
         % Aumenta a pontuação
         score(CurrentScore),
-        NewScore is CurrentScore + 5,
+        NewScore is CurrentScore + 30,
         update_score(NewScore)
     ;
         true
@@ -319,12 +325,18 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
 
 check_phase_completion(Window) :-
     enemies(Enemies),
-    Enemies == [],  % Todos inimigos derrotados
+    Enemies == [],
     current_phase(CurrentPhase),
     max_phases(Max),
 
+    % Remove completamente o timer anterior
+    (retract(enemy_down_timer(OldTimer)) -> 
+        send(OldTimer, stop),
+        free(OldTimer)
+    ; true),
+
     shields(Shields),
-    forall(member(S, Shields), (object(S) -> free(S) ; true)),
+    forall(member(S, Shields), (object(S) -> free(S) ; true)), % Corrigido aqui
     retractall(shields(_)),
     assert(shields([])),
     create_shields(Window),
@@ -333,14 +345,26 @@ check_phase_completion(Window) :-
         NextPhase is CurrentPhase + 1,
         retract(current_phase(_)),
         assert(current_phase(NextPhase)),
+        
+        % Cria novo timer apenas se houver intervalo
+        descida_intervalo(NextPhase, NewInterval),
+        (NewInterval > 0 ->
+            new(NewTimer, timer(NewInterval, message(@prolog, move_enemies_down, Window))),
+            send(NewTimer, start),
+            assert(enemy_down_timer(NewTimer))
+        ; true),
+        
         create_enemies(Window)
     ;
         % Fase do chefe completada
         retractall(current_phase(_)),
         assert(current_phase(1)),
+        descida_intervalo(1, NewInterval),
+        new(NewTimer, timer(NewInterval, message(@prolog, move_enemies_down, Window))),
+        send(NewTimer, start),
+        assert(enemy_down_timer(NewTimer)),
         create_enemies(Window)
     ).
-
 
 % Verifica se há colisão entre dois retângulos
 collision(X1, Y1, W1, H1, X2, Y2, W2, H2) :-
