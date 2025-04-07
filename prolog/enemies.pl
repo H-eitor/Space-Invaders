@@ -1,4 +1,11 @@
-  :-include('shield.pl').
+:-include('shield.pl').
+
+descida_intervalo(1, 8). 
+descida_intervalo(2, 7).    
+descida_intervalo(3, 5).    
+descida_intervalo(4, 4).    
+descida_intervalo(5, 0). 
+
 % Cria uma fileira de 5 inimigos
 create_enemies(Window) :-
     current_phase(Phase),
@@ -242,9 +249,11 @@ move_enemies_down(_) :-
     current_phase(5), !.
 
 move_enemies_down(Window) :-
+    \+ current_phase(5), % Não executa na fase do chefe
     object(Window),
     enemies(Enemies),
-    move_all_enemies_down(Enemies, Window),
+    Enemies \= [], % Só executa se houver inimigos
+    once(move_all_enemies_down(Enemies, Window)), % Garante execução única
     check_enemies_position(Window).
 
 check_enemies_position(Window) :-
