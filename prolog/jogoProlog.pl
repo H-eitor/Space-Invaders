@@ -48,6 +48,14 @@ start :-
     send(Window, display, ScoreText, point(650, 580)),
     assert(score_display(ScoreText)),
 
+    % Exibe o high score na tela
+    get_highscore(TopUser, TopScore),
+    format(atom(HighScoreText), 'Recorde: ~d Pontos, por ~w ', [TopScore, TopUser]),
+    new(HighText, text(HighScoreText)),
+    send(HighText, font, font(arial, bold, 18)),
+    send(HighText, colour, white),
+    send(Window, display, HighText, point(280, 10)),
+
     % Cria o jogador
     new(Player, box(70, 20)),
     send(Player, fill_pattern, colour(green)),

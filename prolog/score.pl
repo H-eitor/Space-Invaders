@@ -20,8 +20,8 @@ highscore(Window) :-
     msort(Pairs, Ordenada),
     reverse(Ordenada, OrdenadaDecrescente),
     findall(User-Score, member(Score-User, OrdenadaDecrescente), Highscore),
-    take(10, Highscore, Top10),
-    display_highscore(Top10, Window, 300, 330).
+    take(5, Highscore, Top5),
+    display_highscore(Top5, Window, 300, 330).
 
 display_highscore([], _, _, _).
 display_highscore([UserName-Score|Rest], Window, X, Y) :-
@@ -46,3 +46,11 @@ comparar_pares(Ord, Key1-Value1, Key2-Value2) :-
     ;
         compare(Ord, Key, Key)
     ).
+
+get_highscore(UserName, Score) :-
+csv_read_file('scores.csv', Linhas, [functor(row)]),
+findall(S-U, member(row(U, S), Linhas), Pairs),
+msort(Pairs, Ordenada),
+reverse(Ordenada, [Score-UserName|_]), !.
+
+get_highscore('N/A', 0). 
