@@ -3,7 +3,8 @@
 :- include('shield.pl').
 :- include('enemies.pl').
 :- include('player.pl').
-:- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1, lives/1, lives_display/1, last_shot_time/1, shoot_cooldown/1.
+:- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1, lives/1, lives_display/1, last_shot_time/1, shoot_cooldown/1,
+current_phase/1, max_phases/1, boss_defeated/0, boss_health/1.
 
 start :- 
     new(Window, picture('Space Invaders')),
@@ -15,6 +16,12 @@ start :-
     % Inicializa vidas
     retractall(lives(_)),
     assert(lives(3)),
+
+    retractall(current_phase(_)),
+    assert(current_phase(5)),
+    retractall(max_phases(_)),
+    assert(max_phases(5)),
+    retractall(boss_defeated),
 
     new(LivesText, text('Vidas: 3')),
     send(LivesText, font, font(arial, bold, 25)),
@@ -98,6 +105,7 @@ game_over(Window) :-
     retractall(player(_)),
     retractall(lives(_)),
     retractall(lives_display(_)),
+    retractall(boss_health(_)),
     
     % Cria mensagem de game over em uma tela limpa
     new(Text, text('GAME OVER')),
@@ -182,7 +190,8 @@ check_collisions(Window) :-
     object(Window),
     bullets(Bullets),
     enemies(Enemies),
-    check_bullet_enemy_collisions(Bullets, Enemies, Window).
+    check_bullet_enemy_collisions(Bullets, Enemies, Window),
+    (Enemies == [] -> check_phase_completion(Window) ; true).
 
 check_bullet_enemy_collisions([], _, _).
 check_bullet_enemy_collisions([Bullet|RestBullets], Enemies, Window) :-
@@ -203,6 +212,42 @@ check_player_hit(Window, Bullets) :-
     assert(enemy_bullets(ExistingBullets)).
 
 check_enemy_hit(_, _, _, _, _, [], _).
+
+check_enemy_hit(BX, BY, BW, BH, Bullet, [Boss|_], Window) :-
+    current_phase(5),
+    object(Boss),
+    get(Boss, position, point(EX, EY)),
+    get(Boss, width, EW),
+    get(Boss, height, EH),
+    collision(BX, BY, BW, BH, EX, EY, EW, EH),
+    !,
+    % Remove a bala
+    free(Bullet),
+    retract(bullets(Bullets)),
+    select(Bullet, Bullets, NewBullets),
+    assert(bullets(NewBullets)),
+    
+    % Reduz a vida do chefe (sem barra visual)
+    retract(boss_health(Health)),
+    NewHealth is Health - 1,
+    assert(boss_health(NewHealth)),
+    
+    % Efeito visual - muda de cor quando está fraco
+    (NewHealth < 4 -> 
+        send(Boss, fill_pattern, colour(red)) 
+    ; true),
+    
+    (NewHealth =< 0 ->
+        % Chefe derrotado
+        free(Boss),
+        retract(enemies(_)),
+        assert(enemies([])),
+        send(Window, redraw),
+        check_phase_completion(Window)
+    ;
+        true
+    ).
+
 check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
     (object(Enemy), object(Bullet), object(Window) ->
         get(Enemy, position, point(EX, EY)),
@@ -226,6 +271,24 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
     ;
         check_enemy_hit(BX, BY, BW, BH, Bullet, Rest, Window)
     ).
+
+check_phase_completion(Window) :-
+    enemies(Enemies),
+    Enemies == [],  % Todos inimigos derrotados
+    current_phase(CurrentPhase),
+    max_phases(Max),
+    (CurrentPhase < Max ->
+        NextPhase is CurrentPhase + 1,
+        retract(current_phase(_)),
+        assert(current_phase(NextPhase)),
+        create_enemies(Window)
+    ;
+        % Fase do chefe completada
+        retractall(current_phase(_)),
+        assert(current_phase(1)),
+        create_enemies(Window)
+    ).
+
 
 % Verifica se há colisão entre dois retângulos
 collision(X1, Y1, W1, H1, X2, Y2, W2, H2) :-
