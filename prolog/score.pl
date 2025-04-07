@@ -16,9 +16,10 @@ save_score_to_csv(UserName, Score) :-
 
 highscore(Window) :-
     csv_read_file('scores.csv', Linhas, [functor(row)]),
-    findall(UserName-Score, (member(row(UserName, Score), Linhas)), Pairs),
-    predsort(comparar_pares, Pairs, Ordenada),
-    reverse(Ordenada, Highscore),
+    findall(Score-UserName, member(row(UserName, Score), Linhas), Pairs),
+    msort(Pairs, Ordenada),
+    reverse(Ordenada, OrdenadaDecrescente),
+    findall(User-Score, member(Score-User, OrdenadaDecrescente), Highscore),
     take(10, Highscore, Top10),
     display_highscore(Top10, Window, 300, 330).
 
