@@ -1,18 +1,62 @@
   :-include('shield.pl').
 % Cria uma fileira de 5 inimigos
 create_enemies(Window) :-
+    current_phase(Phase),
+    (Phase = 5 -> 
+        create_boss(Window)  % Fase de chefe
+    ;
+        create_normal_enemies(Window, Phase)
+    ).
+
+create_normal_enemies(Window, Phase) :-
     retractall(enemies(_)),
     assert(enemies([])),
-    between(1, 5, N),
-    X is 150 + (N * 100),
+    Rows is min(Phase, 4),  % Máximo de 4 fileiras antes do chefe
+    between(1, Rows, Row),
+    between(1, 5, Col),  % 5 inimigos por fileira
+    X is 150 + (Col * 100),
+    Y is 50 + (Row * 50),  % Espaçamento vertical
     new(Enemy, box(50, 30)),
     send(Enemy, fill_pattern, colour(red)),
-    send(Enemy, move, point(X, 100)),
+    send(Enemy, move, point(X, Y)),
     send(Window, display, Enemy),
     retract(enemies(Enemies)),
     assert(enemies([Enemy|Enemies])),
     fail.
-create_enemies(_).
+create_normal_enemies(_, _).
+
+create_boss(Window) :-
+    retractall(enemies(_)),
+    retractall(boss_health(_)),
+    assert(boss_health(10)),
+    
+    % Boss é maior e de cor diferente, mas se move igual
+    new(Boss, box(100, 50)),  % Tamanho maior que inimigos normais
+    send(Boss, fill_pattern, colour(purple)),  % Cor diferente
+    send(Boss, move, point(350, 100)),
+    send(Window, display, Boss),
+    assert(enemies([Boss])).
+
+enemy_shoot(Window) :-
+    current_phase(5),
+    enemies([Boss]),
+    object(Boss),
+    boss_health(Health),
+    Health > 0, % Só atira se ainda estiver vivo
+    get(Boss, position, point(X, Y)),
+    get(Boss, width, EWidth),
+    
+    % Padrão de tiro mais complexo
+    forall(between(1, 3, _), (  % 3 tiros de cada vez
+        new(Bullet, box(8, 25)),  % Balas maiores
+        send(Bullet, fill_pattern, colour(orange)),
+        BulletX is X + random(EWidth) - 3,
+        BulletY is Y + 50,
+        send(Bullet, move, point(BulletX, BulletY)),
+        send(Window, display, Bullet),
+        retract(enemy_bullets(Bullets)),
+        assert(enemy_bullets([Bullet | Bullets]))
+    )).
 
 % Inimigos atiram
 enemy_shoot(Window) :-
@@ -149,6 +193,7 @@ check_enemy_with_shields(EX, EY, EW, EH, [Shield|Rest], Window) :-
     ).
 
 move_enemies(Window) :-
+    % Código original para fases normais
     object(Window),
     enemy_direction(Direction),
     enemies(Enemies),
@@ -161,10 +206,9 @@ move_enemies_list([Enemy|Rest], Direction, WindowWidth, Window) :-
         get(Enemy, position, point(X, Y)),
         get(Enemy, width, EWidth),
         
-        % Definição da velocidade
+        % Velocidade igual para todos os inimigos
         Speed = 4,
         
-        % Cálculo do movimento
         (Direction == right ->
             NewX is X + Speed,
             MaxX is WindowWidth - EWidth,
@@ -187,7 +231,6 @@ move_enemies_list([Enemy|Rest], Direction, WindowWidth, Window) :-
             )
         ),
         
-        % Aplica o movimento
         send(Enemy, move, point(NewXFinal, Y)),
         move_enemies_list(Rest, Direction, WindowWidth, Window)
     ;
@@ -195,6 +238,9 @@ move_enemies_list([Enemy|Rest], Direction, WindowWidth, Window) :-
     ).
 
 % Predicado para mover todos os inimigos para baixo periodicamente
+move_enemies_down(_) :-
+    current_phase(5), !.
+
 move_enemies_down(Window) :-
     object(Window),
     enemies(Enemies),
