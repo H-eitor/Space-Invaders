@@ -35,7 +35,7 @@ start :-
 
     % TESTE
     retractall(username(_)),
-    assert(username('Nome')),
+    assert(username(UserName)),
 
     % Inicializa pontuação
     retractall(score(_)),
@@ -322,6 +322,13 @@ check_phase_completion(Window) :-
     Enemies == [],  % Todos inimigos derrotados
     current_phase(CurrentPhase),
     max_phases(Max),
+
+    shields(Shields),
+    forall(member(S, Shields), (object(S) -> free(S) ; true)),
+    retractall(shields(_)),
+    assert(shields([])),
+    create_shields(Window),
+
     (CurrentPhase < Max ->
         NextPhase is CurrentPhase + 1,
         retract(current_phase(_)),
