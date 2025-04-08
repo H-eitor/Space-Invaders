@@ -6,6 +6,12 @@ descida_intervalo(3, 5).
 descida_intervalo(4, 4).    
 descida_intervalo(5, 0). 
 
+enemy_shoot_interval(1, 2).  
+enemy_shoot_interval(2, 1.6).  
+enemy_shoot_interval(3, 1.3).  
+enemy_shoot_interval(4, 1.3).  
+enemy_shoot_interval(5, 0.8).
+
 % Cria uma fileira de 5 inimigos
 create_enemies(Window) :-
     current_phase(Phase),
