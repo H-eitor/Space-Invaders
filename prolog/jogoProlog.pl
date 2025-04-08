@@ -5,7 +5,7 @@
 :- include('player.pl').
 :- include('score.pl').
 :- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1, lives/1, lives_display/1, last_shot_time/1, shoot_cooldown/1,
-current_phase/1, max_phases/1, boss_defeated/0, boss_health/1, enemy_down_timer/1.
+current_phase/1, max_phases/1, boss_defeated/0, boss_health/1, enemy_down_timer/1, enemy_shoot_timer/1.
 
 start :-
     write('Digite seu nome:'),
@@ -95,8 +95,9 @@ start :-
     new(EnemyTimer, timer(0.04, message(@prolog, move_enemies, Window))),
     send(EnemyTimer, start),
     
-    % Timer para inimigos atirarem
-    new(EnemyShootTimer, timer(1.5, message(@prolog, enemy_shoot, Window))),
+    current_phase(Phase),
+    enemy_shoot_interval(Phase, ShootInterval),
+    new(EnemyShootTimer, timer(ShootInterval, message(@prolog, enemy_shoot, Window))),
     send(EnemyShootTimer, start),
 
     % Corrigido: parêntese fechado corretamente
@@ -152,16 +153,23 @@ game_over(Window) :-
     new(Text, text('GAME OVER')),
     send(Text, font, font(arial, bold, 36)),
     send(Text, colour, red),
-    send(Window, display, Text, point(300, 250)),
-    send(Window, flush),
-    % Mensagem de ESC
+    send(Window, display, Text, point(250, 200)),
+    
+    % Mensagem de ESC logo abaixo do GAME OVER
     new(Esc, text('Pressione ESC para sair')),
     send(Esc, font, font(arial, bold, 12)),
     send(Esc, colour, red),
-    send(Window, display, Esc, point(300, 300)),
-    send(Window, flush),
-    % Placar
-    highscore(Window),
+    send(Window, display, Esc, point(250, 250)),  % Ajustado para 250 (abaixo do 200)
+    
+    % Adiciona o título "TOP 5 PLACARES:" mais abaixo
+    new(TopScoresTitle, text('TOP 5 PLACARES REGISTRADOS:')),
+    send(TopScoresTitle, font, font(arial, bold, 24)),
+    send(TopScoresTitle, colour, yellow),
+    send(Window, display, TopScoresTitle, point(250, 300)),
+    
+    % Exibe os highscores abaixo do título
+    highscore(Window, 250, 340),  % Ajustado para ficar abaixo do título
+    
     send(Window, recogniser, new(K, key_binding(@nil, argument))),
     send(K, function, '\\e', message(@prolog, send, Window, destroy)).
 
@@ -169,27 +177,22 @@ current_timer(Timer) :-
     timer(Timer),
     object(Timer).
 
-check_shield_collision(BX, BY, BW, BH, [Shield|Rest], Window) :-
-    (object(Shield), object(Window) ->
-        get(Shield, position, point(SX, SY)),
-        get(Shield, width, SW),
-        get(Shield, height, SH),
-        
-        (collision(BX, BY, BW, BH, SX, SY, SW, SH) ->
-            % Remove o escudo atingido
-            retract(shields(Shields)),
-            select(Shield, Shields, NewShields),
-            assert(shields(NewShields)),
-            free(Shield),
-            send(Window, redraw),
-            true
-        ;
-            check_shield_collision(BX, BY, BW, BH, Rest, Window)
-        )
-    ;
-        check_shield_collision(BX, BY, BW, BH, Rest, Window)
-    ).
-check_shield_collision(_, _, _, _, [], _) :- fail.
+check_shield_collision(BX, BY, BW, BH, Shields, Window) :-
+    member(Shield, Shields),
+    object(Shield),
+    object(Window),
+    get(Shield, position, point(SX, SY)),
+    get(Shield, width, SW),
+    get(Shield, height, SH),
+    collision(BX, BY, BW, BH, SX, SY, SW, SH),
+    % Remove o escudo atingido
+    retract(shields(CurrentShields)),
+    select(Shield, CurrentShields, NewShields),
+    assert(shields(NewShields)),
+    free(Shield),
+    send(Window, redraw),
+    !.  % Corta para evitar verificar outros escudos
+check_shield_collision(_, _, _, _, _, _) :- fail.
 
 % Atualiza a posição de todas as balas
 update_bullets(Window) :-
@@ -208,31 +211,32 @@ move_bullets([Bullet | Rest], Window, Shields) :-
         get(Bullet, height, BH),
         NewY is Y - 8,
         
-        % Verifica colisão com escudos primeiro
         (check_shield_collision(X, NewY, BW, BH, Shields, Window) ->
             % Remove a bala que atingiu o escudo
             retract(bullets(Bullets)),
             select(Bullet, Bullets, NewBullets),
             assert(bullets(NewBullets)),
             free(Bullet),
-            move_bullets(Rest, Window, Shields)
+            send(Window, redraw)
         ;
-            % Se não colidiu com escudo, continua movimento normal
+            % Continua com o movimento normal
             (NewY < 0 ->
                 retract(bullets(Bullets)),
                 select(Bullet, Bullets, NewBullets),
                 assert(bullets(NewBullets)),
-                free(Bullet)
+                free(Bullet),
+                send(Window, redraw)
             ;
                 send(Bullet, move, point(X, NewY))
-            ),
-            move_bullets(Rest, Window, Shields)
-        )
+            )
+        ),
+        move_bullets(Rest, Window, Shields)
     ;
         % Se o objeto bala não existe mais, remove da lista
         retract(bullets(Bullets)),
         select(Bullet, Bullets, NewBullets),
         assert(bullets(NewBullets)),
+        free(Bullet),
         move_bullets(Rest, Window, Shields)
     ).
 
@@ -332,47 +336,79 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
     ).
 
 check_phase_completion(Window) :-
-    enemies(Enemies),
-    Enemies == [],
+    enemies([]),  % Verifica se não há inimigos
     current_phase(CurrentPhase),
     max_phases(Max),
+    object(Window),
 
-    % Remove completamente o timer anterior
-    (retract(enemy_down_timer(OldTimer)) -> 
-        send(OldTimer, stop),
-        free(OldTimer)
+    % Remove todos os timers antigos
+    (enemy_down_timer(OldMoveTimer), object(OldMoveTimer) -> 
+        send(OldMoveTimer, stop),
+        free(OldMoveTimer),
+        retract(enemy_down_timer(OldMoveTimer))
     ; true),
 
-    shields(Shields),
-    forall(member(S, Shields), (object(S) -> free(S) ; true)), % Corrigido aqui
-    retractall(shields(_)),
-    assert(shields([])),
-    create_shields(Window),
+    (enemy_shoot_timer(OldShootTimer), object(OldShootTimer) -> 
+        send(OldShootTimer, stop),
+        free(OldShootTimer),
+        retract(enemy_shoot_timer(OldShootTimer))
+    ; true),
 
+    % Limpa todas as balas do jogador
+    (retract(bullets(PlayerBullets)) ->
+        clean_bullet_list(PlayerBullets),
+        assert(bullets([]))
+    ; true),
+
+    % Limpa todas as balas inimigas
+    (retract(enemy_bullets(EnemyBullets)) ->
+        clean_bullet_list(EnemyBullets),
+        assert(enemy_bullets([]))
+    ; true),
+
+    % Remove e libera todos os escudos existentes
+    (retract(shields(Shields)) ->
+        forall(member(Shield, Shields), 
+              (object(Shield) -> free(Shield); true)),
+        retractall(shields(_))
+    ; true),
+
+    % Atualiza para próxima fase ou reinicia
     (CurrentPhase < Max ->
         NextPhase is CurrentPhase + 1,
-        retract(current_phase(_)),
-        assert(current_phase(NextPhase)),
-        
-        % Cria novo timer apenas se houver intervalo
-        descida_intervalo(NextPhase, NewInterval),
-        (NewInterval > 0 ->
-            new(NewTimer, timer(NewInterval, message(@prolog, move_enemies_down, Window))),
-            send(NewTimer, start),
-            assert(enemy_down_timer(NewTimer))
-        ; true),
-        
-        create_enemies(Window)
-    ;
-        % Fase do chefe completada
         retractall(current_phase(_)),
-        assert(current_phase(1)),
-        descida_intervalo(1, NewInterval),
-        new(NewTimer, timer(NewInterval, message(@prolog, move_enemies_down, Window))),
-        send(NewTimer, start),
-        assert(enemy_down_timer(NewTimer)),
-        create_enemies(Window)
-    ).
+        assert(current_phase(NextPhase))
+    ;
+        retractall(current_phase(_)),
+        assert(current_phase(1))
+    ),
+
+    % Configura novos timers para a fase
+    current_phase(Phase),
+    descida_intervalo(Phase, NewInterval),
+    new(NewMoveTimer, timer(NewInterval, message(@prolog, move_enemies_down, Window))),
+    send(NewMoveTimer, start),
+    assert(enemy_down_timer(NewMoveTimer)),
+    
+    enemy_shoot_interval(Phase, NewShootInterval),
+    new(NewShootTimer, timer(NewShootInterval, message(@prolog, enemy_shoot, Window))),
+    send(NewShootTimer, start),
+    assert(enemy_shoot_timer(NewShootTimer)),
+
+    % Cria novos escudos
+    create_shields(Window),
+    
+    % Cria inimigos da nova fase
+    create_enemies(Window),
+    
+    % Atualiza a tela
+    send(Window, redraw).
+
+% Auxiliar para limpar lista de balas
+clean_bullet_list([]).
+clean_bullet_list([Bullet|Rest]) :-
+    (object(Bullet) -> free(Bullet); true),
+    clean_bullet_list(Rest).
 
 % Verifica se há colisão entre dois retângulos
 collision(X1, Y1, W1, H1, X2, Y2, W2, H2) :-
