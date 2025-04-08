@@ -4,12 +4,13 @@
 :- include('enemies.pl').
 :- include('player.pl').
 :- include('score.pl').
+:- include('collisions.pl').
 :- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1, lives/1, lives_display/1, last_shot_time/1, shoot_cooldown/1,
 current_phase/1, max_phases/1, boss_defeated/0, boss_health/1, enemy_down_timer/1, enemy_shoot_timer/1.
 
 start :-
-    write('Digite seu nome:'),
-    read(UserName),
+    write('Digite seu nome: '),
+    read_string(UserName),
 
     new(Window, picture('Space Invaders')),
     send(Window, background, black),
@@ -177,22 +178,10 @@ current_timer(Timer) :-
     timer(Timer),
     object(Timer).
 
-check_shield_collision(BX, BY, BW, BH, Shields, Window) :-
-    member(Shield, Shields),
-    object(Shield),
-    object(Window),
-    get(Shield, position, point(SX, SY)),
-    get(Shield, width, SW),
-    get(Shield, height, SH),
-    collision(BX, BY, BW, BH, SX, SY, SW, SH),
-    % Remove o escudo atingido
-    retract(shields(CurrentShields)),
-    select(Shield, CurrentShields, NewShields),
-    assert(shields(NewShields)),
-    free(Shield),
-    send(Window, redraw),
-    !.  % Corta para evitar verificar outros escudos
-check_shield_collision(_, _, _, _, _, _) :- fail.
+read_string(String) :-
+   current_input(Input),
+   read_line_to_codes(Input, Codes),
+   string_codes(String, Codes).
 
 % Atualiza a posição de todas as balas
 update_bullets(Window) :-
@@ -238,26 +227,6 @@ move_bullets([Bullet | Rest], Window, Shields) :-
         assert(bullets(NewBullets)),
         free(Bullet),
         move_bullets(Rest, Window, Shields)
-    ).
-
-% Verifica colisões entre balas e inimigos
-check_collisions(Window) :-
-    object(Window),
-    bullets(Bullets),
-    enemies(Enemies),
-    check_bullet_enemy_collisions(Bullets, Enemies, Window),
-    (Enemies == [] -> check_phase_completion(Window) ; true).
-
-check_bullet_enemy_collisions([], _, _).
-check_bullet_enemy_collisions([Bullet|RestBullets], Enemies, Window) :-
-    (object(Bullet), object(Window) ->
-        get(Bullet, position, point(BX, BY)),
-        get(Bullet, width, BW),
-        get(Bullet, height, BH),
-        check_enemy_hit(BX, BY, BW, BH, Bullet, Enemies, Window),
-        check_bullet_enemy_collisions(RestBullets, Enemies, Window)
-    ;
-        check_bullet_enemy_collisions(RestBullets, Enemies, Window)
     ).
 
 check_player_hit(Window, Bullets) :-
