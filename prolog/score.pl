@@ -14,18 +14,18 @@ save_score_to_csv(UserName, Score) :-
     nl(Stream),
     close(Stream).
 
-highscore(Window) :-
+highscore(Window, X, Y) :-
     csv_read_file('scores.csv', Linhas, [functor(row)]),
     findall(Score-UserName, member(row(UserName, Score), Linhas), Pairs),
     msort(Pairs, Ordenada),
     reverse(Ordenada, OrdenadaDecrescente),
     findall(User-Score, member(Score-User, OrdenadaDecrescente), Highscore),
     take(5, Highscore, Top5),
-    display_highscore(Top5, Window, 300, 330).
+    display_highscore(Top5, Window, X, Y).
 
 display_highscore([], _, _, _).
 display_highscore([UserName-Score|Rest], Window, X, Y) :-
-    atomic_list_concat([UserName, Score], ': ', Texto),
+    atomic_list_concat([UserName, ': ', Score], Texto),
     new(ScoreText, text(Texto)),
     send(ScoreText, font, font(arial, bold, 20)),
     send(ScoreText, colour, white),
