@@ -294,3 +294,71 @@ move_all_enemies_down([Enemy|Rest], Window) :-
         move_all_enemies_down(Rest, Window)
     ).
 
+check_enemy_hit(_, _, _, _, _, [], _).
+
+check_enemy_hit(BX, BY, BW, BH, Bullet, [Boss|_], Window) :-
+    current_phase(5),
+    object(Boss),
+    get(Boss, position, point(EX, EY)),
+    get(Boss, width, EW),
+    get(Boss, height, EH),
+    collision(BX, BY, BW, BH, EX, EY, EW, EH),
+    !,
+    % Remove a bala
+    free(Bullet),
+    retract(bullets(Bullets)),
+    select(Bullet, Bullets, NewBullets),
+    assert(bullets(NewBullets)),
+    
+    % Reduz a vida do chefe
+    retract(boss_health(Health)),
+    NewHealth is Health - 1,
+    assert(boss_health(NewHealth)),
+    
+    % Efeito visual - muda de cor quando está fraco
+    (NewHealth < 4 -> 
+        send(Boss, fill_pattern, colour(red)) 
+    ; true),
+    
+    (NewHealth =< 0 ->
+        % Chefe derrotado
+        free(Boss),
+        retract(enemies(_)),
+        assert(enemies([])),
+        send(Window, redraw),
+        check_phase_completion(Window),
+        % Aumenta a pontuação
+        score(CurrentScore),
+        NewScore is CurrentScore + 30,
+        update_score(NewScore)
+    ;
+        true
+    ).
+
+check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
+    (object(Enemy), object(Bullet), object(Window) ->
+        get(Enemy, position, point(EX, EY)),
+        get(Enemy, width, EW),
+        get(Enemy, height, EH),
+        (collision(BX, BY, BW, BH, EX, EY, EW, EH) ->
+            % Remove a bala e o inimigo
+            free(Bullet),
+            free(Enemy),
+            % Atualiza as listas
+            retract(bullets(Bullets)),
+            select(Bullet, Bullets, NewBullets),
+            assert(bullets(NewBullets)),
+            retract(enemies(Enemies)),
+            select(Enemy, Enemies, NewEnemies),
+            assert(enemies(NewEnemies)),
+            send(Window, redraw),
+            % Aumenta a pontuação
+            score(CurrentScore),
+            NewScore is CurrentScore + 1,
+            update_score(NewScore)
+        ;
+            check_enemy_hit(BX, BY, BW, BH, Bullet, Rest, Window)
+        )
+    ;
+        check_enemy_hit(BX, BY, BW, BH, Bullet, Rest, Window)
+    ).

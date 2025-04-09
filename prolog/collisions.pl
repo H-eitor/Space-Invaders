@@ -34,3 +34,11 @@ check_bullet_enemy_collisions([Bullet|RestBullets], Enemies, Window) :-
     ;
         check_bullet_enemy_collisions(RestBullets, Enemies, Window)
     ).
+
+
+% Verifica se há colisão entre dois retângulos
+collision(X1, Y1, W1, H1, X2, Y2, W2, H2) :-
+    X1 < X2 + W2,
+    X1 + W1 > X2,
+    Y1 < Y2 + H2,
+    Y1 + H1 > Y2.

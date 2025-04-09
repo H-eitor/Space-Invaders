@@ -47,3 +47,8 @@ player_shoot(Player, Window) :-
         true
     ).
 
+check_player_hit(Window, Bullets) :-
+    object(Window),
+    findall(B, (member(B, Bullets), object(B)), ExistingBullets),
+    retractall(enemy_bullets(_)),
+    assert(enemy_bullets(ExistingBullets)).
