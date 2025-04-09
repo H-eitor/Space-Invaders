@@ -66,3 +66,53 @@ check_phase_completion(Window) :-
     
     % Atualiza a tela
     send(Window, redraw).
+
+% Tela de game over.
+game_over(Window) :-
+    % Para todos os timers
+    forall(current_timer(Timer), send(Timer, stop)),
+    
+    % Remove todos os objetos visíveis
+    send(Window, clear),  % Limpa toda a janela
+    
+    % Salva a pontuação em um arquivo CSV
+    score(Score),
+    username(UserName),
+    save_score_to_csv(UserName, Score),
+
+    % Remove todos os fatos dinâmicos
+    retractall(bullets(_)),
+    retractall(enemies(_)),
+    retractall(enemy_bullets(_)),
+    retractall(enemy_direction(_)),
+    retractall(player(_)),
+    retractall(lives(_)),
+    retractall(lives_display(_)),
+    retractall(boss_health(_)),
+    retractall(score(_)),
+    retractall(score_display(_)),
+
+    % Cria mensagem de game over em uma tela limpa
+    new(Text, text('GAME OVER')),
+    send(Text, font, font(arial, bold, 36)),
+    send(Text, colour, red),
+    send(Window, display, Text, point(250, 200)),
+    
+    % Mensagem de ESC
+    new(Esc, text('Pressione ESC para sair')),
+    send(Esc, font, font(arial, bold, 12)),
+    send(Esc, colour, red),
+    send(Window, display, Esc, point(250, 250)),
+    
+    % Adiciona o título "TOP 5 PLACARES:"
+    new(TopScoresTitle, text('TOP 5 PLACARES REGISTRADOS:')),
+    send(TopScoresTitle, font, font(arial, bold, 24)),
+    send(TopScoresTitle, colour, yellow),
+    send(Window, display, TopScoresTitle, point(250, 300)),
+    
+    % Exibe os highscores abaixo do título
+    highscore(Window, 250, 340),
+    
+    send(Window, recogniser, new(K, key_binding(@nil, argument))),
+    send(K, function, '\\e', message(@prolog, send, Window, destroy)).
+
