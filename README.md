@@ -57,7 +57,7 @@ Projeto na linguagem Haskell para a disciplina de PLP
   ```
 - 4º Passo: rodar o jogo:
   ```
-  ?- consult('jogoProlog.pl).
+  ?- consult('jogoProlog.pl').
   ?- start.
   ```
 ## Grupo:
