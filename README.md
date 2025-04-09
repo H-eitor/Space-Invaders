@@ -48,8 +48,18 @@ Projeto na linguagem Haskell para a disciplina de PLP
 - 4º Passo: executar o jogo diretamente pelo executável que foi criado apartir da compilação do código
 
 - IMPORTANTE: Para evitar qualquer erro é recomendável desativar o Windows Defender (não existe nenhuma ameaça no executavel mas alguns computadores podem reclamar)
-
-
+## Passo a Passo para a intalação Prolog:
+- 1º Passo: clonar o repositório do jogo.
+- 2º Passo: instalar o swi-prolog
+- 3º Passo: rodar o ambiante de prolog no diretorio contendo o arquivo jogoProlog.pl, localizado na pasta prolog:
+  ```
+  swipl
+  ```
+- 4º Passo: rodar o jogo:
+  ```
+  ?- consult('jogoProlog.pl).
+  ?- start.
+  ```
 ## Grupo:
 - Rafael Alencar Adelino de Lima - 123110785
 - Isaque Esdras Rocha Cavalcante - 123110685
