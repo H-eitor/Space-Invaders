@@ -44,9 +44,12 @@ check_phase_completion(Window) :-
 
     current_phase(Phase),
     descida_intervalo(Phase, NewInterval),
-    new(NewMoveTimer, timer(NewInterval, message(@prolog, move_enemies_down, Window))),
-    send(NewMoveTimer, start),
-    assert(enemy_down_timer(NewMoveTimer)),
+    (NewInterval > 0 ->  
+        new(NewMoveTimer, timer(NewInterval, message(@prolog, move_enemies_down, Window))),
+        send(NewMoveTimer, start),
+        assert(enemy_down_timer(NewMoveTimer))
+    ; true
+    ),
     
     enemy_shoot_interval(Phase, NewShootInterval),
     new(NewShootTimer, timer(NewShootInterval, message(@prolog, enemy_shoot, Window))),
