@@ -56,19 +56,37 @@ enemy_shoot(Window) :-
     enemies([Boss]),
     object(Boss),
     boss_health(Health),
-    Health > 0, 
+    Health > 0,
     get(Boss, position, point(X, Y)),
     get(Boss, width, EWidth),
-    
-    forall(between(1, 3, _), (  
-        new(Bullet, box(8, 25)),  
+
+    (retract(enemy_bullets(Bullets)) ->
+        findall(Bullet, 
+               (member(Bullet, Bullets), 
+                object(Bullet), 
+                get(Bullet, position, point(_, BY)), 
+                get(Window, height, WH), 
+                BY < WH), 
+               ValidBullets),
+        findall(Bullet, 
+               (member(Bullet, Bullets), 
+                (\+ object(Bullet) ; 
+                (object(Bullet), get(Bullet, position, point(_, BY)), 
+                 get(Window, height, WH), BY >= WH))), 
+               InvalidBullets),
+        forall(member(Bullet, InvalidBullets), free(Bullet)),
+        assert(enemy_bullets(ValidBullets))
+    ; true),
+
+    forall(between(1, 3, _), (
+        new(Bullet, box(8, 25)),
         send(Bullet, fill_pattern, colour(orange)),
         BulletX is X + random(EWidth) - 3,
         BulletY is Y + 50,
         send(Bullet, move, point(BulletX, BulletY)),
         send(Window, display, Bullet),
-        retract(enemy_bullets(Bullets)),
-        assert(enemy_bullets([Bullet | Bullets]))
+        retract(enemy_bullets(CurrentBullets)),
+        assert(enemy_bullets([Bullet | CurrentBullets]))
     )).
 
 % Inimigos atiram
