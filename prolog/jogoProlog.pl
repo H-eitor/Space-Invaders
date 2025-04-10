@@ -26,7 +26,7 @@ start :-
     assert(lives(3)),
 
     retractall(current_phase(_)),
-    assert(current_phase(5)),
+    assert(current_phase(1)),
     retractall(max_phases(_)),
     assert(max_phases(5)),
     retractall(boss_defeated),
