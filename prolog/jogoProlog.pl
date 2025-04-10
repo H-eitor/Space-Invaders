@@ -8,7 +8,7 @@
 :- include('bullet.pl').
 :- include('gamePhase.pl').
 
-% FAtos dinamicos do jogo
+% Fatos dinamicos do jogo
 :- dynamic player/1, bullets/1, enemies/1, enemy_bullets/1, enemy_direction/1, timer/1, shields/1, lives/1, lives_display/1, last_shot_time/1, shoot_cooldown/1,
 current_phase/1, max_phases/1, boss_defeated/0, boss_health/1, enemy_down_timer/1, enemy_shoot_timer/1.
 
