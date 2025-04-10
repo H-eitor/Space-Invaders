@@ -6,13 +6,12 @@ check_shield_collision(BX, BY, BW, BH, Shields, Window) :-
     get(Shield, width, SW),
     get(Shield, height, SH),
     collision(BX, BY, BW, BH, SX, SY, SW, SH),
-    % Remove o escudo atingido
     retract(shields(CurrentShields)),
     select(Shield, CurrentShields, NewShields),
     assert(shields(NewShields)),
     free(Shield),
     send(Window, redraw),
-    !.  % Corta para evitar verificar outros escudos
+    !.  
 check_shield_collision(_, _, _, _, _, _) :- fail.
 
 % Verifica colisões entre balas e inimigos
