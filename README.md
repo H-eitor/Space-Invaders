@@ -50,8 +50,8 @@ Projeto na linguagem Haskell para a disciplina de PLP
 - IMPORTANTE: Para evitar qualquer erro é recomendável desativar o Windows Defender (não existe nenhuma ameaça no executavel mas alguns computadores podem reclamar)
 ## Passo a Passo para a intalação Prolog:
 - 1º Passo: clonar o repositório do jogo.
-- 2º Passo: instalar o swi-prolog
-- 3º Passo: rodar o ambiante de prolog no diretorio contendo o arquivo jogoProlog.pl, localizado na pasta prolog:
+- 2º Passo: instalar o swi-prolog (https://www.swi-prolog.org/Download.html)
+- 3º Passo: rodar o ambiente de prolog no diretorio contendo o arquivo jogoProlog.pl, localizado na pasta prolog:
   ```
   swipl
   ```
