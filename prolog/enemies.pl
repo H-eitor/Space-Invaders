@@ -12,23 +12,24 @@ enemy_shoot_interval(3, 1.3).
 enemy_shoot_interval(4, 1.3).  
 enemy_shoot_interval(5, 0.8).
 
-% Cria uma fileira de 5 inimigos
+% Cria os inimigos
 create_enemies(Window) :-
     current_phase(Phase),
     (Phase = 5 -> 
-        create_boss(Window)  % Fase de chefe
+        create_boss(Window) 
     ;
         create_normal_enemies(Window, Phase)
     ).
 
+% Cria inimigos normais
 create_normal_enemies(Window, Phase) :-
     retractall(enemies(_)),
     assert(enemies([])),
-    Rows is min(Phase, 4),  % Máximo de 4 fileiras antes do chefe
+    Rows is min(Phase, 4),  
     between(1, Rows, Row),
-    between(1, 5, Col),  % 5 inimigos por fileira
+    between(1, 5, Col),  
     X is 150 + (Col * 100),
-    Y is 50 + (Row * 50),  % Espaçamento vertical
+    Y is 50 + (Row * 50),  
     new(Enemy, box(50, 30)),
     send(Enemy, fill_pattern, colour(red)),
     send(Enemy, move, point(X, Y)),
@@ -38,14 +39,14 @@ create_normal_enemies(Window, Phase) :-
     fail.
 create_normal_enemies(_, _).
 
+% Cria o chefe
 create_boss(Window) :-
     retractall(enemies(_)),
     retractall(boss_health(_)),
     assert(boss_health(10)),
     
-    % Boss é maior e de cor diferente, mas se move igual
-    new(Boss, box(100, 50)),  % Tamanho maior que inimigos normais
-    send(Boss, fill_pattern, colour(purple)),  % Cor diferente
+    new(Boss, box(100, 50)),  
+    send(Boss, fill_pattern, colour(purple)),  
     send(Boss, move, point(350, 100)),
     send(Window, display, Boss),
     assert(enemies([Boss])).
@@ -55,13 +56,12 @@ enemy_shoot(Window) :-
     enemies([Boss]),
     object(Boss),
     boss_health(Health),
-    Health > 0, % Só atira se ainda estiver vivo
+    Health > 0, 
     get(Boss, position, point(X, Y)),
     get(Boss, width, EWidth),
     
-    % Padrão de tiro mais complexo
-    forall(between(1, 3, _), (  % 3 tiros de cada vez
-        new(Bullet, box(8, 25)),  % Balas maiores
+    forall(between(1, 3, _), (  
+        new(Bullet, box(8, 25)),  
         send(Bullet, fill_pattern, colour(orange)),
         BulletX is X + random(EWidth) - 3,
         BulletY is Y + 50,
@@ -76,18 +76,17 @@ enemy_shoot(Window) :-
     object(Window),
     enemies(Enemies),
     Enemies \= [],
-    % Escolhe um inimigo aleatório para atirar
+    
     random_member(Shooter, Enemies),
     object(Shooter),
     get(Shooter, position, point(X, Y)),
     get(Shooter, width, EWidth),
     new(Bullet, box(4, 15)),
     send(Bullet, fill_pattern, colour(orange)),
-    BulletX is X + EWidth/2 - 3,  % Centraliza o tiro
-    BulletY is Y + 30,  % Sai da base do inimigo
+    BulletX is X + EWidth/2 - 3,  
+    BulletY is Y + 30,  
     send(Bullet, move, point(BulletX, BulletY)),
     send(Window, display, Bullet),
-    % Adiciona bala à lista de balas inimigas
     retract(enemy_bullets(Bullets)),
     assert(enemy_bullets([Bullet | Bullets])).
 
@@ -108,28 +107,23 @@ move_enemy_bullets([Bullet | Rest], Window, Player, Shields) :-
         get(Bullet, height, BH),
         NewBY is BY + 5,
         
-        % Primeiro verifica colisão com escudos
         (check_shield_collision(BX, NewBY, BW, BH, Shields, Window) ->
-            % Remove a bala que atingiu o escudo
             retract(enemy_bullets(Bullets)),
             select(Bullet, Bullets, NewBullets),
             assert(enemy_bullets(NewBullets)),
             free(Bullet),
             move_enemy_bullets(Rest, Window, Player, Shields)
         ;
-            % Se não colidiu com escudo, verifica colisão com jogador
             get(Player, position, point(PX, PY)),
             get(Player, width, PW),
             get(Player, height, PH),
             
             (collision(BX, NewBY, BW, BH, PX, PY, PW, PH) ->
-                % Remove a bala
                 retract(enemy_bullets(Bullets)),
                 select(Bullet, Bullets, NewBullets),
                 assert(enemy_bullets(NewBullets)),
                 free(Bullet),
                 
-                % Atualiza contador de vidas
                 retract(lives(Lives)),
                 NewLives is Lives - 1,
                 assert(lives(NewLives)),
@@ -138,18 +132,15 @@ move_enemy_bullets([Bullet | Rest], Window, Player, Shields) :-
                 send(LivesDisplay, string, string('Vidas: %d', NewLives)),
                 
                 (NewLives =< 0 ->
-                    % Sem vidas restantes - game over
                     free(Player),
                     retractall(player(_)),
                     game_over(Window)
                 ;
-                    % Ainda tem vidas - reposiciona o jogador
                     get(Player, position, point(PX, _)),
-                    send(Player, move, point(PX, 550)),  % Mantém X, reseta Y
+                    send(Player, move, point(PX, 550)),  
                     send(Window, display, Player)
                 )
             ;
-                % Continua com o movimento normal
                 get(Window, height, WindowHeight),
                 (NewBY > WindowHeight ->
                     retract(enemy_bullets(Bullets)),
@@ -167,6 +158,7 @@ move_enemy_bullets([Bullet | Rest], Window, Player, Shields) :-
         move_enemy_bullets(Rest, Window, Player, Shields)
     ).
 
+%Verifica colisao dos inimigos com escudos
 check_enemy_shield_collision(Window) :-
     enemies(Enemies),
     shields(Shields),
@@ -192,7 +184,6 @@ check_enemy_with_shields(EX, EY, EW, EH, [Shield|Rest], Window) :-
         get(Shield, height, SH),
         
         (collision(EX, EY, EW, EH, SX, SY, SW, SH) ->
-            % Remove o escudo atingido
             retract(shields(Shields)),
             select(Shield, Shields, NewShields),
             assert(shields(NewShields)),
@@ -205,8 +196,8 @@ check_enemy_with_shields(EX, EY, EW, EH, [Shield|Rest], Window) :-
         check_enemy_with_shields(EX, EY, EW, EH, Rest, Window)
     ).
 
+% Move os inimigos
 move_enemies(Window) :-
-    % Código original para fases normais
     object(Window),
     enemy_direction(Direction),
     enemies(Enemies),
@@ -219,7 +210,6 @@ move_enemies_list([Enemy|Rest], Direction, WindowWidth, Window) :-
         get(Enemy, position, point(X, Y)),
         get(Enemy, width, EWidth),
         
-        % Velocidade igual para todos os inimigos
         Speed = 4,
         
         (Direction == right ->
@@ -233,7 +223,6 @@ move_enemies_list([Enemy|Rest], Direction, WindowWidth, Window) :-
                 NewXFinal = NewX
             )
         ;
-            % Direction == left
             NewX is X - Speed,
             (NewX =< 0 ->
                 retract(enemy_direction(_)),
@@ -250,18 +239,18 @@ move_enemies_list([Enemy|Rest], Direction, WindowWidth, Window) :-
         move_enemies_list(Rest, Direction, WindowWidth, Window)
     ).
 
-% Predicado para mover todos os inimigos para baixo periodicamente
+% Move os inimigos para baixo (com exceção da fase 5)
 move_enemies_down(_) :-
     current_phase(5), !.
 
 move_enemies_down(Window) :-
-    \+ current_phase(5), % Não executa na fase do chefe
     object(Window),
     enemies(Enemies),
-    Enemies \= [], % Só executa se houver inimigos
-    once(move_all_enemies_down(Enemies, Window)), % Garante execução única
+    Enemies \= [], 
+    once(move_all_enemies_down(Enemies, Window)), 
     check_enemies_position(Window).
 
+% Verifica a posicao dos inimigos
 check_enemies_position(Window) :-
     enemies(Enemies),
     player(Player),
@@ -269,7 +258,7 @@ check_enemies_position(Window) :-
     get(Player, position, point(_, PY)),
     (member(Enemy, Enemies), object(Enemy) ->
         get(Enemy, position, point(_, EY)),
-        (EY >= PY ->  % Se inimigo alcançou ou passou a linha do jogador
+        (EY >= PY -> 
             free(Player),
             retractall(player(_)),
             game_over(Window)
@@ -279,23 +268,21 @@ check_enemies_position(Window) :-
     ;
         true
     ),
-    % Verifica também colisão com escudos
     check_enemy_shield_collision(Window).
 
-% Auxiliar para mover cada inimigo individualmente para baixo
 move_all_enemies_down([], _).
 move_all_enemies_down([Enemy|Rest], Window) :-
     (object(Enemy), object(Window) ->
         get(Enemy, position, point(X, Y)),
-        NewY is Y + 30,  % Distância do movimento para baixo (ajuste conforme necessário)
+        NewY is Y + 30,  
         send(Enemy, move, point(X, NewY)),
         move_all_enemies_down(Rest, Window)
     ;
         move_all_enemies_down(Rest, Window)
     ).
 
+% Verifica se algum inimigo foi atingido
 check_enemy_hit(_, _, _, _, _, [], _).
-
 check_enemy_hit(BX, BY, BW, BH, Bullet, [Boss|_], Window) :-
     current_phase(5),
     object(Boss),
@@ -304,30 +291,26 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Boss|_], Window) :-
     get(Boss, height, EH),
     collision(BX, BY, BW, BH, EX, EY, EW, EH),
     !,
-    % Remove a bala
     free(Bullet),
     retract(bullets(Bullets)),
     select(Bullet, Bullets, NewBullets),
     assert(bullets(NewBullets)),
     
-    % Reduz a vida do chefe
+
     retract(boss_health(Health)),
     NewHealth is Health - 1,
     assert(boss_health(NewHealth)),
     
-    % Efeito visual - muda de cor quando está fraco
     (NewHealth < 4 -> 
         send(Boss, fill_pattern, colour(red)) 
     ; true),
     
     (NewHealth =< 0 ->
-        % Chefe derrotado
         free(Boss),
         retract(enemies(_)),
         assert(enemies([])),
         send(Window, redraw),
         check_phase_completion(Window),
-        % Aumenta a pontuação
         score(CurrentScore),
         NewScore is CurrentScore + 30,
         update_score(NewScore)
@@ -341,10 +324,8 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
         get(Enemy, width, EW),
         get(Enemy, height, EH),
         (collision(BX, BY, BW, BH, EX, EY, EW, EH) ->
-            % Remove a bala e o inimigo
             free(Bullet),
             free(Enemy),
-            % Atualiza as listas
             retract(bullets(Bullets)),
             select(Bullet, Bullets, NewBullets),
             assert(bullets(NewBullets)),
@@ -352,7 +333,6 @@ check_enemy_hit(BX, BY, BW, BH, Bullet, [Enemy|Rest], Window) :-
             select(Enemy, Enemies, NewEnemies),
             assert(enemies(NewEnemies)),
             send(Window, redraw),
-            % Aumenta a pontuação
             score(CurrentScore),
             NewScore is CurrentScore + 1,
             update_score(NewScore)
