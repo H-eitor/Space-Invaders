@@ -16,14 +16,12 @@ move_bullets([Bullet | Rest], Window, Shields) :-
         NewY is Y - 8,
         
         (check_shield_collision(X, NewY, BW, BH, Shields, Window) ->
-            % Remove a bala que atingiu o escudo
             retract(bullets(Bullets)),
             select(Bullet, Bullets, NewBullets),
             assert(bullets(NewBullets)),
             free(Bullet),
             send(Window, redraw)
         ;
-            % Continua com o movimento normal
             (NewY < 0 ->
                 retract(bullets(Bullets)),
                 select(Bullet, Bullets, NewBullets),
@@ -36,7 +34,7 @@ move_bullets([Bullet | Rest], Window, Shields) :-
         ),
         move_bullets(Rest, Window, Shields)
     ;
-        % Se o objeto bala não existe mais, remove da lista
+    
         retract(bullets(Bullets)),
         select(Bullet, Bullets, NewBullets),
         assert(bullets(NewBullets)),
