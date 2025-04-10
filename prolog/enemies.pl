@@ -268,6 +268,7 @@ check_enemies_position(Window) :-
     ;
         true
     ),
+    check_player_enemy_collision(Window),
     check_enemy_shield_collision(Window).
 
 move_all_enemies_down([], _).
