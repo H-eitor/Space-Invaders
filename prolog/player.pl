@@ -1,4 +1,4 @@
-% Movimento do jogador para a direita com limite
+% Movimento do jogador para a direita
 move_right(Box, Window) :-
     object(Window),
     object(Box),
@@ -10,7 +10,7 @@ move_right(Box, Window) :-
     send(Box, move, point(NewX, Y)),
     send(Window, display, Box).
 
-% Movimento do jogador para a esquerda com limite
+% Movimento do jogador para a esquerda
 move_left(Box, Window) :-
     object(Window),
     object(Box),
@@ -19,6 +19,7 @@ move_left(Box, Window) :-
     send(Box, move, point(NewX, Y)),
     send(Window, display, Box).
 
+% Tiro do jogador
 player_shoot(Player, Window) :-
     object(Window),
     object(Player),
@@ -26,7 +27,6 @@ player_shoot(Player, Window) :-
     last_shot_time(LastTime),
     shoot_cooldown(Cooldown),
     (CurrentTime - LastTime >= Cooldown ->
-        % Pode atirar
         get(Player, position, point(X, Y)),
         new(Bullet, box(4, 15)),
         send(Bullet, fill_pattern, colour(yellow)),
@@ -35,18 +35,16 @@ player_shoot(Player, Window) :-
         send(Bullet, move, point(NewX, NewY)),
         send(Window, display, Bullet),
         
-        % Atualiza lista de balas
         retract(bullets(Bullets)),
         assert(bullets([Bullet | Bullets])),
         
-        % Registra o momento do tiro
         retractall(last_shot_time(_)),
         assert(last_shot_time(CurrentTime))
     ;
-        % Ainda em cooldown - não faz nada
         true
     ).
 
+% Verifica se o jogador foi atingido por uma bala inimiga
 check_player_hit(Window, Bullets) :-
     object(Window),
     findall(B, (member(B, Bullets), object(B)), ExistingBullets),
