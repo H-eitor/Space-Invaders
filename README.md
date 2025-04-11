@@ -1,5 +1,5 @@
 # SPACE INVADERS
-Projeto na linguagem Haskell para a disciplina de PLP
+Projeto nas linguagens Haskell e Prolog para a disciplina de PLP
 
 ![Alt text](https://res.cloudinary.com/cook-becker/image/fetch/q_auto:best,f_auto,w_1920,g_center/https://candb.com/site/candb/images/artwork/MarqueeHome.jpg "title image")
 
